@@ -8,6 +8,25 @@ class DateSelector {
     init() {
         this.setupEventListeners();
         this.updateSelectedDatesDisplay();
+        this.initializeMessageContainer(); // 初始化訊息容器
+    }
+
+    initializeMessageContainer() {
+        // 確保訊息容器存在
+        let messageContainer = document.getElementById('messageContainer');
+        if (!messageContainer) {
+            // 如果不存在，創建一個
+            messageContainer = document.createElement('div');
+            messageContainer.id = 'messageContainer';
+            messageContainer.className = 'message-container';
+            
+            // 插入到提交按鈕後面
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.parentNode.insertBefore(messageContainer, submitBtn.nextSibling);
+        }
+        
+        // 初始化空訊息
+        this.showMessage('', 'info');
     }
 
     setupEventListeners() {
@@ -131,6 +150,7 @@ class DateSelector {
         // 顯示載入狀態
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<span class="loading"></span>提交中...';
+        this.showMessage('正在提交中...', 'info');
 
         try {
             const voterName = document.getElementById('voterName').value.trim();
@@ -167,10 +187,6 @@ class DateSelector {
     }
 
     async submitToGoogleSheets(records) {
-        // 這裡需要配置您的 Google Sheets API
-        // 由於這是靜態網頁，建議使用 Google Apps Script 作為中介
-        
-        // 示例配置 - 請替換為您的實際 Google Apps Script URL
         const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxUj3KL7PPwLHlOT9BYVWK9P7rDH95M6GMgqjss2ynaQJdmGVSkm9L9rUPObuPz1Lox/exec';
         
         if (SCRIPT_URL === 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE') {
@@ -222,31 +238,31 @@ class DateSelector {
         this.selectedDates.clear();
         this.updateSelectedDatesDisplay();
         this.validateForm();
+        this.showMessage('表單已重置', 'info');
     }
 
     showMessage(text, type) {
-        // 移除現有消息
-        const existingMessage = document.querySelector('.message');
-        if (existingMessage) {
-            existingMessage.remove();
+        // 獲取或創建訊息容器
+        let messageContainer = document.getElementById('messageContainer');
+        if (!messageContainer) {
+            messageContainer = document.createElement('div');
+            messageContainer.id = 'messageContainer';
+            messageContainer.className = 'message-container';
+            
+            // 插入到提交按鈕後面
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.parentNode.insertBefore(messageContainer, submitBtn.nextSibling);
         }
 
-        // 創建新消息
-        const message = document.createElement('div');
-        message.className = `message ${type} fade-in`;
-        message.textContent = text;
-
-        // 插入到提交按鈕後面
-        const submitBtn = document.getElementById('submitBtn');
-        submitBtn.parentNode.insertBefore(message, submitBtn.nextSibling);
-
-        // 3秒後自動移除成功消息
-        if (type === 'success') {
-            setTimeout(() => {
-                if (message.parentNode) {
-                    message.remove();
-                }
-            }, 3000);
+        // 更新訊息內容
+        messageContainer.className = `message-container message ${type}`;
+        
+        if (text.trim() === '') {
+            // 空訊息時顯示佔位符
+            messageContainer.innerHTML = '<span style="color: #a0aec0; font-style: italic;">準備就緒</span>';
+            messageContainer.className = 'message-container message info';
+        } else {
+            messageContainer.textContent = text;
         }
     }
 }
@@ -309,7 +325,8 @@ function doPost(e) {
     const data = JSON.parse(e.postData.contents);
     
     if (data.action === 'submitVotes') {
-      const sheet = SpreadsheetApp.openById('YOUR_SPREADSHEET_ID').getActiveSheet();
+      // Google Sheets ID
+      const sheet = SpreadsheetApp.openById('123abc').getActiveSheet();
       
       // 確保標題行存在
       if (sheet.getLastRow() === 0) {
@@ -332,6 +349,37 @@ function doPost(e) {
     }
     
   } catch (error) {
+    // 錯誤處理和日誌記錄
+    try {
+      const spreadsheet = SpreadsheetApp.openById('123abc');
+      
+      // 檢查是否有 'log' 工作表，沒有就新增
+      let logSheet;
+      try {
+        logSheet = spreadsheet.getSheetByName('log');
+      } catch (e) {
+        logSheet = null;
+      }
+      
+      if (!logSheet) {
+        logSheet = spreadsheet.insertSheet('log');
+        // 添加標題行
+        logSheet.getRange(1, 1, 1, 2).setValues([['錯誤訊息', '時間']]);
+      }
+      
+      // 添加錯誤記錄
+      const currentTime = new Date();
+      logSheet.appendRow([
+        error.toString(),
+        currentTime
+      ]);
+      
+    } catch (logError) {
+      // 如果日誌記錄也失敗，至少在 Console 中記錄
+      console.error('日誌記錄失敗:', logError);
+      console.error('原始錯誤:', error);
+    }
+    
     return ContentService
       .createTextOutput(JSON.stringify({success: false, error: error.toString()}))
       .setMimeType(ContentService.MimeType.JSON);
@@ -344,5 +392,5 @@ function doPost(e) {
 7. 將您的 Google Sheets ID 替換到 YOUR_SPREADSHEET_ID
 
 Google Sheets ID 可以從試算表 URL 中取得：
-https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit
+https://docs.google.com/spreadsheets/d/123abc/edit
 */
