@@ -48,7 +48,15 @@
         </form>
     </div>
 
-    <script src="script.js"></script>
+    <script type="text/javascript">
+        (function(){
+            const script = document.createElement('script');
+            script.type = 'text/javascript';
+            script.src = 'script.js?t=' + new Date().getTime();
+            document.head.appendChild(script);
+        })();
+    </script>
 </body>
 
 </html>
+
