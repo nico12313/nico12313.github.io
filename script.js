@@ -296,6 +296,7 @@ class DateSelector {
 
     async submitViaFetch(scriptUrl, records) {
         const response = await fetch(scriptUrl, {
+            redirect: "follow",
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
