@@ -170,7 +170,7 @@ class DateSelector {
         // 由於這是靜態網頁，建議使用 Google Apps Script 作為中介
         
         // 示例配置 - 請替換為您的實際 Google Apps Script URL
-        const SCRIPT_URL = 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE';
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxUj3KL7PPwLHlOT9BYVWK9P7rDH95M6GMgqjss2ynaQJdmGVSkm9L9rUPObuPz1Lox/exec';
         
         if (SCRIPT_URL === 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE') {
             // 開發模式 - 模擬提交
