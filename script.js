@@ -217,19 +217,8 @@ class DateSelector {
             await this.submitViaForm(SCRIPT_URL, records);
             return;
         } catch (formError) {
-            console.log('Form submission failed, trying fetch as fallback:', formError.message);
-            
-            // 如果 form submission 失敗，嘗試使用 fetch 作為備用方案
-            try {
-                await this.submitViaFetch(SCRIPT_URL, records);
-                return;
-            } catch (fetchError) {
-                console.error('Both submission methods failed:', {
-                    formError: formError.message,
-                    fetchError: fetchError.message
-                });
-                throw new Error('提交失敗：網路連線問題或服務暫時無法使用');
-            }
+            console.log('Form submission failed:', formError.message);
+            throw new Error('提交失敗：網路連線問題或服務暫時無法使用');
         }
     }
 
@@ -275,29 +264,6 @@ class DateSelector {
         });
     }
 
-    async submitViaFetch(scriptUrl, records) {
-        const response = await fetch(scriptUrl, {
-            redirect: "follow",
-            method: 'POST',
-            headers: {
-                'Content-Type': 'text/plain',
-            },
-            body: JSON.stringify({
-                action: 'submitVotes',
-                data: records
-            })
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const result = await response.json();
-        if (!result.success) {
-            throw new Error(result.error || 'Fetch 提交失敗');
-        }
-    }
-
     async simulateSubmission(records) {
         // 模擬網路延遲
         await new Promise(resolve => setTimeout(resolve, 1500));
@@ -322,12 +288,9 @@ class DateSelector {
     }
 
     resetForm() {
-        document.getElementById('voterName').value = '';
-        document.getElementById('emailAddress').value = '';
         this.selectedDates.clear();
         this.updateSelectedDatesDisplay();
         this.validateForm();
-        this.showMessage('表單已重置', 'info');
     }
 
     showMessage(text, type) {
@@ -360,6 +323,12 @@ class DateSelector {
 let dateSelector;
 
 function initializeDateSelector() {
+    // 檢查是否已經初始化
+    if (document.body.classList.contains('app_init')) {
+        console.log('DateSelector already initialized, skipping...');
+        return;
+    }
+    
     console.log('Initializing DateSelector...');
     
     // 檢查必要的 DOM 元素是否存在
@@ -379,6 +348,9 @@ function initializeDateSelector() {
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('dateInput').min = today;
         
+        // 標記為已初始化
+        document.body.classList.add('app_init');
+        
         console.log('DateSelector initialized successfully');
     } catch (error) {
         console.error('Error initializing DateSelector:', error);
@@ -395,7 +367,7 @@ if (document.readyState === 'loading') {
 
 // 作為備援，在 window.onload 時也嘗試初始化
 window.addEventListener('load', function() {
-    if (!window.dateSelector) {
+    if (!window.dateSelector || !document.body.classList.contains('app_init')) {
         console.log('Backup initialization on window.onload');
         initializeDateSelector();
     }
