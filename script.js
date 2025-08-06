@@ -2,6 +2,9 @@
 class DateSelector {
     constructor() {
         this.selectedDates = new Set();
+        this.currentDate = new Date();
+        this.today = new Date();
+        this.today.setHours(0, 0, 0, 0);
         this.init();
     }
 
@@ -9,6 +12,7 @@ class DateSelector {
         this.setupEventListeners();
         this.updateSelectedDatesDisplay();
         this.initializeMessageContainer(); // 初始化訊息容器
+        this.renderCalendar(); // 初始化日曆
     }
 
     initializeMessageContainer() {
@@ -30,16 +34,20 @@ class DateSelector {
     }
 
     setupEventListeners() {
-        // 添加日期按鈕
+        // 添加日期按鈕 (保留但隱藏)
         const addDateBtn = document.getElementById('addDateBtn');
         const dateInput = document.getElementById('dateInput');
         
-        addDateBtn.addEventListener('click', () => this.addDate());
-        dateInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                this.addDate();
-            }
-        });
+        if (addDateBtn) {
+            addDateBtn.addEventListener('click', () => this.addDate());
+        }
+        if (dateInput) {
+            dateInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    this.addDate();
+                }
+            });
+        }
 
         // 提交表單
         const submitBtn = document.getElementById('submitBtn');
@@ -50,6 +58,133 @@ class DateSelector {
         const emailInput = document.getElementById('emailAddress');
         voterNameInput.addEventListener('input', () => this.validateForm());
         // emailInput.addEventListener('input', () => this.validateForm());
+    }
+
+    renderCalendar() {
+        const container = document.getElementById('calendarContainer');
+        if (!container) return;
+
+        const year = this.currentDate.getFullYear();
+        const month = this.currentDate.getMonth();
+
+        // 建立日曆 HTML
+        const calendarHTML = `
+            <div class="calendar-header">
+                <button class="calendar-nav-btn" id="prevMonth">‹</button>
+                <div class="calendar-month-year">${year}年${month + 1}月</div>
+                <button class="calendar-nav-btn" id="nextMonth">›</button>
+            </div>
+            <div class="calendar-grid">
+                ${this.generateCalendarDays()}
+            </div>
+        `;
+
+        container.innerHTML = calendarHTML;
+
+        // 添加導航事件
+        document.getElementById('prevMonth').addEventListener('click', () => {
+            this.currentDate.setMonth(this.currentDate.getMonth() - 1);
+            this.renderCalendar();
+        });
+
+        document.getElementById('nextMonth').addEventListener('click', () => {
+            this.currentDate.setMonth(this.currentDate.getMonth() + 1);
+            this.renderCalendar();
+        });
+
+        // 添加日期點擊事件
+        container.querySelectorAll('.calendar-day').forEach(dayElement => {
+            dayElement.addEventListener('click', (e) => {
+                const dateStr = e.target.dataset.date;
+                if (dateStr && !e.target.classList.contains('disabled')) {
+                    this.addDateFromCalendar(dateStr);
+                }
+            });
+        });
+    }
+
+    generateCalendarDays() {
+        const year = this.currentDate.getFullYear();
+        const month = this.currentDate.getMonth();
+        
+        // 取得當月第一天和最後一天
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+        
+        // 取得第一天是星期幾 (0 = 星期日, 1 = 星期一, ...)
+        const startDate = new Date(firstDay);
+        startDate.setDate(startDate.getDate() - firstDay.getDay());
+        
+        let daysHTML = '';
+        
+        // 添加星期標頭
+        const dayHeaders = ['日', '一', '二', '三', '四', '五', '六'];
+        dayHeaders.forEach(day => {
+            daysHTML += `<div class="calendar-day-header">${day}</div>`;
+        });
+
+        // 生成42天 (6週)
+        for (let i = 0; i < 42; i++) {
+            const currentDay = new Date(startDate);
+            currentDay.setDate(startDate.getDate() + i);
+            
+            const dayNum = currentDay.getDate();
+            const isCurrentMonth = currentDay.getMonth() === month;
+            const isToday = this.isSameDate(currentDay, this.today);
+            const isPast = currentDay < this.today;
+            const dateStr = this.formatDateForInput(currentDay);
+            const isSelected = this.selectedDates.has(dateStr);
+            
+            let classes = ['calendar-day'];
+            if (!isCurrentMonth) classes.push('other-month');
+            if (isToday) classes.push('today');
+            if (isPast) classes.push('disabled');
+            if (isSelected) classes.push('selected');
+
+            daysHTML += `
+                <div class="${classes.join(' ')}" data-date="${dateStr}">
+                    ${dayNum}
+                </div>
+            `;
+        }
+
+        return daysHTML;
+    }
+
+    addDateFromCalendar(dateStr) {
+        // 檢查日期是否已被選擇
+        if (this.selectedDates.has(dateStr)) {
+            this.showMessage('此日期已被選擇', 'error');
+            return;
+        }
+
+        // 檢查日期是否為過去的日期
+        const selected = new Date(dateStr);
+        if (selected < this.today) {
+            this.showMessage('不能選擇過去的日期', 'error');
+            return;
+        }
+
+        // 添加日期到選擇列表
+        this.selectedDates.add(dateStr);
+        this.updateSelectedDatesDisplay();
+        this.renderCalendar(); // 重新渲染以更新選中狀態
+        this.validateForm();
+        
+        this.showMessage('日期添加成功', 'success');
+    }
+
+    formatDateForInput(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    isSameDate(date1, date2) {
+        return date1.getFullYear() === date2.getFullYear() &&
+               date1.getMonth() === date2.getMonth() &&
+               date1.getDate() === date2.getDate();
     }
 
     addDate() {
@@ -90,6 +225,7 @@ class DateSelector {
     removeDate(date) {
         this.selectedDates.delete(date);
         this.updateSelectedDatesDisplay();
+        this.renderCalendar(); // 重新渲染日曆以更新選中狀態
         this.validateForm();
         this.showMessage('日期已移除', 'success');
     }
@@ -290,6 +426,7 @@ class DateSelector {
     resetForm() {
         this.selectedDates.clear();
         this.updateSelectedDatesDisplay();
+        this.renderCalendar(); // 重新渲染日曆以清除選中狀態
         this.validateForm();
     }
 

@@ -35,7 +35,11 @@
             <!-- 日期選擇區域 -->
             <div class="date-picker-section">
                 <div class="date-picker-header">選擇可用日期</div>
-                <div class="date-input-group">
+                <div class="calendar-container" id="calendarContainer">
+                    <!-- 日曆將由 JavaScript 動態生成 -->
+                </div>
+                <!-- 隱藏原有的日期輸入 -->
+                <div class="date-input-group" style="display: none;">
                     <input type="date" id="dateInput" name="dateInput">
                     <button type="button" id="addDateBtn" class="add-date-btn">新增日期</button>
                 </div>
