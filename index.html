@@ -1,75 +1,54 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 
 <head>
-  <meta charset="utf-8">
-  <script>
-    window.location = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
-  </script>
-  <title>20240316 公視晚間新聞 竹科又疑過勞 32歲男工程師猝死</title>
-  <!-- <meta property="og:title" content="亞洲統神 面臨劇透危機 東立被迫關站 辛酸畫面流出" > -->
-  <meta property="og:title" content="驚傳竹北工程師過勞倒下 家人慟：他才剛要辦婚禮" >
-  <meta property="og:url" content="https://www.youtube.com/watch?v=dQw4w9WgXcQ">
-  <meta property="og:image" content="https://i.ytimg.com/vi/u0D9U1glbMI/hqdefault.jpg">
-  <!-- <meta property="og:description" content="被倒讚幫徹底地擊潰了= =
-  張家老弟自己滑
-  
-  FB粉專│gao yong wei: facebook.com/profile.php?id=169696969696969
-  不定期更新" > -->
-  <meta property="og:description" content="一位年屆三十的竹北工程師，最近傳出因過勞而倒下的消息，再度引起社會關注。這位姓郭的年輕人，在轉換了竹北科技公司的工作後，卻陷入了連番繁重的工作壓力中。據知情者透露，郭先生進入竹北科技公司僅僅數個月，但已經陷入了長時間的加班困境。他的同事表示，竹北科技公司的工作環境極度緊迫，長時間的加班更是司空見慣。竹北科技公司的管理層對於此事未有回應。然而，郭先生的倒下事件再次引起了人們對於工時長、工作壓力過大的討論。許多人呼籲，企業應該更加重視員工的健康和生活品質，避免因過勞而導致身心健康問題的發生。" >
-  <link rel="icon" href="cmonBruh.ico" type="image/x-icon">
-  <link rel="shortcut icon" href="cmonBruh.ico" type="image/x-icon">
-  <style style="text/css">
-    * {
-      padding: 0;
-      margin: 0;
-    }
-    body {
-      font-size: 15pt
-    }
-    a {
-      text-decoration: none;
-    }
-    a:hover {
-      text-decoration: underline;
-    }
-    a:color {
-      black;
-    }
-    .container {
-      height: 100vh;
-      width:  100vw;
-    }
-    .spoiler {
-      max-height: 100%;
-      max-width: 100%;
-      width: auto;
-      height: auto;
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      margin: auto;
-    }
-    .footer{
-    }
-  </style>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日期選擇器 - 多重日期投票系統</title>
+    <meta name="description" content="響應式多重日期選擇器，支援 Google Sheets 數據提交">
+    <meta property="og:title" content="日期選擇器 - 多重日期投票系統">
+    <meta property="og:description" content="響應式多重日期選擇器，支援多個非連續日期選擇和 Google Sheets 整合">
+    <meta property="og:type" content="website">
+    <link rel="icon" href="cmonBruh.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="cmonBruh.ico" type="image/x-icon">
+    <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
-  <center style="display: none;">
     <div class="container">
-      <img class="spoiler" src="https://i.imgur.com/BYj3rmk.jpg" title="source: imgur.com" height=50%/>
+        <h1 class="title">日期選擇器</h1>
+        <p class="subtitle">請選擇您偏好的多個日期</p>
+        
+        <form id="dateForm">
+            <!-- 投票者姓名 -->
+            <div class="form-group">
+                <label for="voterName">投票者姓名 *</label>
+                <input type="text" id="voterName" name="voterName" placeholder="請輸入您的姓名" required>
+            </div>
+
+            <!-- 日期選擇區域 -->
+            <div class="date-picker-section">
+                <div class="date-picker-header">選擇可用日期</div>
+                <div class="date-input-group">
+                    <input type="date" id="dateInput" name="dateInput">
+                    <button type="button" id="addDateBtn" class="add-date-btn">新增日期</button>
+                </div>
+            </div>
+
+            <!-- 已選擇的日期顯示 -->
+            <div class="selected-dates">
+                <div class="date-picker-header">已選擇的日期</div>
+                <div id="selectedDates">
+                    <p style="color: #718096; font-style: italic;">尚未選擇任何日期</p>
+                </div>
+            </div>
+
+            <!-- 提交按鈕 -->
+            <button type="button" id="submitBtn" class="submit-btn" disabled>提交選擇</button>
+        </form>
     </div>
-    <footer class="footer">
-      <div align=center><a href='https://www.counter12.com'><img src='https://www.counter12.com/img-d6yBwaAcbZAYD2aW-57.gif' border='0' alt='free counter'></a><script type='text/javascript' src='https://www.counter12.com/ad.js?id=d6yBwaAcbZAYD2aW'></script></div>
-      <!-- FC2計數器 開始 -->
-      <script language="javascript" type="text/javascript" src="//counter1.fc2.com/counter.php?id=37445965&main=1"></script><noscript><img src="//counter1.fc2.com/counter_img.php?id=37445965&main=1" /></noscript>
-      <!-- FC2計數器 開始 -->
-      <script language="javascript" type="text/javascript" src="//counter1.fc2.com/views.php?id=37445965&main=1"></script><noscript><img src="//counter1.fc2.com/counter_now.php?id=37445965&main=1" /></noscript>
-    </footer>
-  </center>
+
+    <script src="script.js"></script>
 </body>
 
 </html>
