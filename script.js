@@ -236,63 +236,41 @@ class DateSelector {
     async submitViaForm(scriptUrl, records) {
         return new Promise((resolve, reject) => {
             try {
-                // 創建隱藏的表單進行提交
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = scriptUrl;
-                form.style.display = 'none';
-
-                // 添加數據到表單
-                const dataInput = document.createElement('input');
-                dataInput.type = 'hidden';
-                dataInput.name = 'data';
-                dataInput.value = JSON.stringify({
+                // 創建 FormData 對象
+                const formData = new FormData();
+                
+                // 添加數據到 FormData
+                formData.append('data', JSON.stringify({
                     action: 'submitVotes',
                     data: records
+                }));
+    
+                // 使用 fetch 發送 POST 請求
+                const response = await fetch(scriptUrl, {
+                    method: "POST",
+                    body: formData,
                 });
-                form.appendChild(dataInput);
-
-                // 創建隱藏的 iframe 來接收回應
-                const iframe = document.createElement('iframe');
-                iframe.name = 'submitFrame';
-                iframe.style.display = 'none';
-                form.target = 'submitFrame';
-
-                // 添加到頁面
-                document.body.appendChild(iframe);
-                document.body.appendChild(form);
-
-                // 監聽 iframe 載入完成
-                let timeoutId;
-                const cleanup = () => {
-                    clearTimeout(timeoutId);
-                    if (form.parentNode) form.parentNode.removeChild(form);
-                    if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
-                };
-
-                iframe.onload = () => {
-                    setTimeout(() => {
-                        cleanup();
-                        resolve({ success: true });
-                    }, 1000);
-                };
-
-                iframe.onerror = () => {
-                    cleanup();
-                    reject(new Error('表單提交失敗'));
-                };
-
-                // 設置較短的超時時間用於快速失敗切換
-                timeoutId = setTimeout(() => {
-                    cleanup();
-                    reject(new Error('表單提交超時'));
-                }, 8000);
-
-                // 提交表單
-                form.submit();
-
+    
+                // 檢查回應狀態
+                if (!response.ok) {
+                    reject(new Error(`HTTP error! status: ${response.status}`));
+                    return;
+                }
+    
+                // 嘗試解析回應（如果 Google Apps Script 返回 JSON）
+                let result;
+                try {
+                    result = await response.json();
+                } catch {
+                    // 如果不是 JSON，返回文本內容
+                    result = await response.text();
+                }
+    
+                resolve({ success: true, data: result });
+    
             } catch (error) {
-                reject(error);
+                console.error('表單提交失敗:', error);
+                reject(new Error(`表單提交失敗: ${error.message}`));
             }
         });
     }
