@@ -2,13 +2,17 @@
 class DateSelector {
     constructor() {
         this.selectedDates = new Set();
+        this.currentDate = new Date();
+        this.today = new Date();
+        this.today.setHours(0, 0, 0, 0);
         this.init();
     }
 
     init() {
         this.setupEventListeners();
         this.updateSelectedDatesDisplay();
-        this.initializeMessageContainer(); // 初始化訊息容器
+        this.initializeMessageContainer();
+        this.renderCalendar();
     }
 
     initializeMessageContainer() {
@@ -30,16 +34,12 @@ class DateSelector {
     }
 
     setupEventListeners() {
-        // 添加日期按鈕
-        const addDateBtn = document.getElementById('addDateBtn');
-        const dateInput = document.getElementById('dateInput');
+        // Calendar navigation
+        const prevMonthBtn = document.getElementById('prevMonth');
+        const nextMonthBtn = document.getElementById('nextMonth');
         
-        addDateBtn.addEventListener('click', () => this.addDate());
-        dateInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                this.addDate();
-            }
-        });
+        prevMonthBtn.addEventListener('click', () => this.previousMonth());
+        nextMonthBtn.addEventListener('click', () => this.nextMonth());
 
         // 提交表單
         const submitBtn = document.getElementById('submitBtn');
@@ -52,45 +52,125 @@ class DateSelector {
         // emailInput.addEventListener('input', () => this.validateForm());
     }
 
-    addDate() {
-        const dateInput = document.getElementById('dateInput');
-        const selectedDate = dateInput.value;
+    previousMonth() {
+        this.currentDate.setMonth(this.currentDate.getMonth() - 1);
+        this.renderCalendar();
+    }
 
-        if (!selectedDate) {
-            this.showMessage('請選擇一個日期', 'error');
-            return;
-        }
+    nextMonth() {
+        this.currentDate.setMonth(this.currentDate.getMonth() + 1);
+        this.renderCalendar();
+    }
 
-        // 檢查日期是否已被選擇
-        if (this.selectedDates.has(selectedDate)) {
-            this.showMessage('此日期已被選擇', 'error');
-            return;
-        }
-
-        // 檢查日期是否為過去的日期
-        const today = new Date();
-        const selected = new Date(selectedDate);
-        today.setHours(0, 0, 0, 0);
+    renderCalendar() {
+        const currentMonthSpan = document.getElementById('currentMonth');
+        const calendarDatesContainer = document.getElementById('calendarDates');
         
-        if (selected < today) {
+        // Set month/year header
+        const year = this.currentDate.getFullYear();
+        const month = this.currentDate.getMonth();
+        const monthNames = ['一月', '二月', '三月', '四月', '五月', '六月', 
+                           '七月', '八月', '九月', '十月', '十一月', '十二月'];
+        currentMonthSpan.textContent = `${year}年 ${monthNames[month]}`;
+        
+        // Clear previous dates
+        calendarDatesContainer.innerHTML = '';
+        
+        // Get first day of the month and number of days
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+        const daysInMonth = lastDay.getDate();
+        const startingDayOfWeek = firstDay.getDay(); // 0 = Sunday, 1 = Monday, etc.
+        
+        // Add empty cells for days before the first day of the month
+        for (let i = 0; i < startingDayOfWeek; i++) {
+            const emptyCell = document.createElement('div');
+            emptyCell.className = 'calendar-date other-month';
+            const prevMonthDate = new Date(year, month, -startingDayOfWeek + i + 1);
+            emptyCell.textContent = prevMonthDate.getDate();
+            calendarDatesContainer.appendChild(emptyCell);
+        }
+        
+        // Add days of the current month
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dateCell = document.createElement('div');
+            dateCell.className = 'calendar-date';
+            dateCell.textContent = day;
+            
+            const cellDate = new Date(year, month, day);
+            const dateString = this.formatDateString(cellDate);
+            
+            // Add classes based on date status
+            if (this.isSameDay(cellDate, this.today)) {
+                dateCell.classList.add('today');
+            }
+            
+            if (cellDate < this.today) {
+                dateCell.classList.add('past-date');
+            } else {
+                // Only add click listener for future dates
+                dateCell.addEventListener('click', () => this.toggleDate(dateString));
+                
+                if (this.selectedDates.has(dateString)) {
+                    dateCell.classList.add('selected');
+                }
+            }
+            
+            calendarDatesContainer.appendChild(dateCell);
+        }
+        
+        // Add remaining days to fill the calendar grid
+        const totalCells = calendarDatesContainer.children.length;
+        const remainingCells = 42 - totalCells; // 6 rows × 7 days = 42 cells
+        
+        for (let i = 1; i <= remainingCells && totalCells + i <= 42; i++) {
+            const emptyCell = document.createElement('div');
+            emptyCell.className = 'calendar-date other-month';
+            emptyCell.textContent = i;
+            calendarDatesContainer.appendChild(emptyCell);
+        }
+    }
+
+    toggleDate(dateString) {
+        if (this.selectedDates.has(dateString)) {
+            this.removeDate(dateString);
+        } else {
+            this.addDateToSelection(dateString);
+        }
+    }
+
+    addDateToSelection(dateString) {
+        // Check if date is in the past
+        const selectedDate = new Date(dateString);
+        if (selectedDate < this.today) {
             this.showMessage('不能選擇過去的日期', 'error');
             return;
         }
 
-        // 添加日期到選擇列表
-        this.selectedDates.add(selectedDate);
+        // Add date to selection
+        this.selectedDates.add(dateString);
         this.updateSelectedDatesDisplay();
-        //留著 input value 方便連續選擇
-        //dateInput.value = '';
         this.validateForm();
+        this.renderCalendar(); // Re-render to update visual state
         
         this.showMessage('日期添加成功', 'success');
+    }
+
+    formatDateString(date) {
+        return date.toISOString().split('T')[0];
+    }
+
+    isSameDay(date1, date2) {
+        return date1.getFullYear() === date2.getFullYear() &&
+               date1.getMonth() === date2.getMonth() &&
+               date1.getDate() === date2.getDate();
     }
 
     removeDate(date) {
         this.selectedDates.delete(date);
         this.updateSelectedDatesDisplay();
         this.validateForm();
+        this.renderCalendar(); // Re-render to update visual state
         this.showMessage('日期已移除', 'success');
     }
 
@@ -327,6 +407,7 @@ class DateSelector {
         this.selectedDates.clear();
         this.updateSelectedDatesDisplay();
         this.validateForm();
+        this.renderCalendar(); // Re-render calendar to update visual state
         this.showMessage('表單已重置', 'info');
     }
 
@@ -363,7 +444,7 @@ function initializeDateSelector() {
     console.log('Initializing DateSelector...');
     
     // 檢查必要的 DOM 元素是否存在
-    const requiredElements = ['addDateBtn', 'dateInput', 'voterName', 'emailAddress', 'submitBtn'];
+    const requiredElements = ['prevMonth', 'nextMonth', 'voterName', 'emailAddress', 'submitBtn'];
     const elementsReady = requiredElements.every(id => document.getElementById(id) !== null);
     
     if (!elementsReady) {
@@ -374,11 +455,6 @@ function initializeDateSelector() {
     
     try {
         dateSelector = new DateSelector();
-        
-        // 設置最小日期為今天
-        const today = new Date().toISOString().split('T')[0];
-        document.getElementById('dateInput').min = today;
-        
         console.log('DateSelector initialized successfully');
     } catch (error) {
         console.error('Error initializing DateSelector:', error);

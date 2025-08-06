@@ -35,9 +35,24 @@
             <!-- 日期選擇區域 -->
             <div class="date-picker-section">
                 <div class="date-picker-header">選擇可用日期</div>
-                <div class="date-input-group">
-                    <input type="date" id="dateInput" name="dateInput">
-                    <button type="button" id="addDateBtn" class="add-date-btn">新增日期</button>
+                <div class="calendar-widget">
+                    <div class="calendar-header">
+                        <button type="button" id="prevMonth" class="calendar-nav-btn">❮</button>
+                        <span id="currentMonth" class="calendar-month-year"></span>
+                        <button type="button" id="nextMonth" class="calendar-nav-btn">❯</button>
+                    </div>
+                    <div class="calendar-grid">
+                        <div class="calendar-weekdays">
+                            <div class="weekday">日</div>
+                            <div class="weekday">一</div>
+                            <div class="weekday">二</div>
+                            <div class="weekday">三</div>
+                            <div class="weekday">四</div>
+                            <div class="weekday">五</div>
+                            <div class="weekday">六</div>
+                        </div>
+                        <div id="calendarDates" class="calendar-dates"></div>
+                    </div>
                 </div>
             </div>
 
