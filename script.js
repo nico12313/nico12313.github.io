@@ -47,7 +47,9 @@ class DateSelector {
 
         // 表單驗證
         const voterNameInput = document.getElementById('voterName');
+        const emailInput = document.getElementById('emailAddress');
         voterNameInput.addEventListener('input', () => this.validateForm());
+        emailInput.addEventListener('input', () => this.validateForm());
     }
 
     addDate() {
@@ -130,17 +132,27 @@ class DateSelector {
 
     validateForm() {
         const voterName = document.getElementById('voterName').value.trim();
+        const emailAddress = document.getElementById('emailAddress').value.trim();
         const submitBtn = document.getElementById('submitBtn');
         
-        const isValid = voterName.length > 0 && this.selectedDates.size > 0;
+        // 驗證電子郵件格式
+        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const isEmailValid = emailPattern.test(emailAddress);
+        
+        const isValid = voterName.length > 0 && emailAddress.length > 0 && isEmailValid && this.selectedDates.size > 0;
         submitBtn.disabled = !isValid;
+        
+        // 顯示電子郵件格式錯誤提示
+        if (emailAddress.length > 0 && !isEmailValid) {
+            this.showMessage('請輸入有效的電子郵件地址', 'error');
+        }
         
         return isValid;
     }
 
     async submitForm() {
         if (!this.validateForm()) {
-            this.showMessage('請填寫姓名並選擇至少一個日期', 'error');
+            this.showMessage('請填寫姓名、有效電子郵件並選擇至少一個日期', 'error');
             return;
         }
 
@@ -154,6 +166,7 @@ class DateSelector {
 
         try {
             const voterName = document.getElementById('voterName').value.trim();
+            const emailAddress = document.getElementById('emailAddress').value.trim();
             const votingTime = new Date().toLocaleString('zh-TW', {
                 timeZone: 'Asia/Taipei',
                 year: 'numeric',
@@ -169,6 +182,7 @@ class DateSelector {
                 voterName: voterName,
                 votingDate: date,
                 votingTime: votingTime,
+                emailAddress: emailAddress,
                 validityStatus: '有效'
             }));
 
@@ -179,7 +193,7 @@ class DateSelector {
             
         } catch (error) {
             console.error('提交錯誤:', error);
-            this.showMessage('提交失敗，請稍後再試。', 'error');
+            this.showMessage('提交失敗，請稍後再試。如問題持續發生，請聯絡系統管理員。', 'error');
         } finally {
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalText;
@@ -195,7 +209,93 @@ class DateSelector {
             return;
         }
 
-        const response = await fetch(SCRIPT_URL, {
+        // 先嘗試使用 form submission 方法避開 CORS 限制
+        try {
+            await this.submitViaForm(SCRIPT_URL, records);
+            return;
+        } catch (formError) {
+            console.log('Form submission failed, trying fetch as fallback:', formError.message);
+            
+            // 如果 form submission 失敗，嘗試使用 fetch 作為備用方案
+            try {
+                await this.submitViaFetch(SCRIPT_URL, records);
+                return;
+            } catch (fetchError) {
+                console.error('Both submission methods failed:', {
+                    formError: formError.message,
+                    fetchError: fetchError.message
+                });
+                throw new Error('提交失敗：網路連線問題或服務暫時無法使用');
+            }
+        }
+    }
+
+    async submitViaForm(scriptUrl, records) {
+        return new Promise((resolve, reject) => {
+            try {
+                // 創建隱藏的表單進行提交
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = scriptUrl;
+                form.style.display = 'none';
+
+                // 添加數據到表單
+                const dataInput = document.createElement('input');
+                dataInput.type = 'hidden';
+                dataInput.name = 'data';
+                dataInput.value = JSON.stringify({
+                    action: 'submitVotes',
+                    data: records
+                });
+                form.appendChild(dataInput);
+
+                // 創建隱藏的 iframe 來接收回應
+                const iframe = document.createElement('iframe');
+                iframe.name = 'submitFrame';
+                iframe.style.display = 'none';
+                form.target = 'submitFrame';
+
+                // 添加到頁面
+                document.body.appendChild(iframe);
+                document.body.appendChild(form);
+
+                // 監聽 iframe 載入完成
+                let timeoutId;
+                const cleanup = () => {
+                    clearTimeout(timeoutId);
+                    if (form.parentNode) form.parentNode.removeChild(form);
+                    if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+                };
+
+                iframe.onload = () => {
+                    setTimeout(() => {
+                        cleanup();
+                        resolve({ success: true });
+                    }, 1000);
+                };
+
+                iframe.onerror = () => {
+                    cleanup();
+                    reject(new Error('表單提交失敗'));
+                };
+
+                // 設置較短的超時時間用於快速失敗切換
+                timeoutId = setTimeout(() => {
+                    cleanup();
+                    reject(new Error('表單提交超時'));
+                }, 8000);
+
+                // 提交表單
+                form.submit();
+
+            } catch (error) {
+                reject(error);
+            }
+        });
+    }
+
+    async submitViaFetch(scriptUrl, records) {
+        const response = await fetch(scriptUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -212,7 +312,7 @@ class DateSelector {
 
         const result = await response.json();
         if (!result.success) {
-            throw new Error(result.error || '提交失敗');
+            throw new Error(result.error || 'Fetch 提交失敗');
         }
     }
 
@@ -224,7 +324,13 @@ class DateSelector {
         console.log('模擬提交到 Google Sheets:');
         console.log('記錄數量:', records.length);
         records.forEach((record, index) => {
-            console.log(`記錄 ${index + 1}:`, record);
+            console.log(`記錄 ${index + 1}:`, {
+                姓名: record.voterName,
+                電子郵件: record.emailAddress,
+                投票日期: record.votingDate,
+                投票時間: record.votingTime,
+                狀態: record.validityStatus
+            });
         });
         
         // 模擬隨機失敗（10% 機率）
@@ -235,6 +341,7 @@ class DateSelector {
 
     resetForm() {
         document.getElementById('voterName').value = '';
+        document.getElementById('emailAddress').value = '';
         this.selectedDates.clear();
         this.updateSelectedDatesDisplay();
         this.validateForm();
@@ -274,7 +381,7 @@ function initializeDateSelector() {
     console.log('Initializing DateSelector...');
     
     // 檢查必要的 DOM 元素是否存在
-    const requiredElements = ['addDateBtn', 'dateInput', 'voterName', 'submitBtn'];
+    const requiredElements = ['addDateBtn', 'dateInput', 'voterName', 'emailAddress', 'submitBtn'];
     const elementsReady = requiredElements.every(id => document.getElementById(id) !== null);
     
     if (!elementsReady) {
