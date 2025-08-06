@@ -59,7 +59,8 @@ class DateSelector {
         // 添加日期到選擇列表
         this.selectedDates.add(selectedDate);
         this.updateSelectedDatesDisplay();
-        dateInput.value = '';
+        //留著 input value 方便連續選擇
+        //dateInput.value = '';
         this.validateForm();
         
         this.showMessage('日期添加成功', 'success');
