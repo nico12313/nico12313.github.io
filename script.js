@@ -302,7 +302,7 @@ class DateSelector {
             redirect: "follow",
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'text/plain',
             },
             body: JSON.stringify({
                 action: 'submitVotes',
