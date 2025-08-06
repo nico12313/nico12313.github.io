@@ -234,7 +234,7 @@ class DateSelector {
     }
 
     async submitViaForm(scriptUrl, records) {
-        return new Promise((resolve, reject) => {
+        return new Promise(async (resolve, reject) => {
             try {
                 // 創建 FormData 對象
                 const formData = new FormData();
