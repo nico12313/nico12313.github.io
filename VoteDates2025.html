@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日期選擇器 - 多重日期投票系統</title>
+    <meta name="description" content="響應式多重日期選擇器，支援 Google Sheets 數據提交">
+    <meta property="og:title" content="日期選擇器 - 多重日期投票系統">
+    <meta property="og:description" content="響應式多重日期選擇器，支援多個非連續日期選擇和 Google Sheets 整合">
+    <meta property="og:type" content="website">
+    <link rel="icon" href="cmonBruh.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="cmonBruh.ico" type="image/x-icon">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <h1 class="title">日期選擇器</h1>
+        <p class="subtitle">請選擇您偏好的多個日期</p>
+        
+        <form id="dateForm">
+            <!-- 投票者姓名 -->
+            <div class="form-group">
+                <label for="voterName">投票者姓名 *</label>
+                <input type="text" id="voterName" name="voterName" placeholder="請輸入您的姓名" required>
+            </div>
+
+            <!-- 日期選擇區域 -->
+            <div class="date-picker-section">
+                <div class="date-picker-header">選擇可用日期</div>
+                <div class="date-input-group">
+                    <input type="date" id="dateInput" name="dateInput">
+                    <button type="button" id="addDateBtn" class="add-date-btn">新增日期</button>
+                </div>
+            </div>
+
+            <!-- 已選擇的日期顯示 -->
+            <div class="selected-dates">
+                <div class="date-picker-header">已選擇的日期</div>
+                <div id="selectedDates">
+                    <p style="color: #718096; font-style: italic;">尚未選擇任何日期</p>
+                </div>
+            </div>
+
+            <!-- 提交按鈕 -->
+            <button type="button" id="submitBtn" class="submit-btn" disabled>提交選擇</button>
+        </form>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
