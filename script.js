@@ -429,21 +429,42 @@ window.addEventListener('load', function() {
 
 function doPost(e) {
   try {
-    const data = JSON.parse(e.postData.contents);
+    // 處理 CORS preflight 請求
+    if (e.request && e.request.method === 'OPTIONS') {
+      return ContentService
+        .createTextOutput('')
+        .setMimeType(ContentService.MimeType.TEXT)
+        .setHeaders({
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type'
+        });
+    }
+    
+    // 處理表單數據 (來自隱藏表單提交)
+    let data;
+    if (e.parameter && e.parameter.data) {
+      data = JSON.parse(e.parameter.data);
+    } else if (e.postData && e.postData.contents) {
+      data = JSON.parse(e.postData.contents);
+    } else {
+      throw new Error('無法解析請求數據');
+    }
     
     if (data.action === 'submitVotes') {
-      // Google Sheets ID
-      const sheet = SpreadsheetApp.openById('123abc').getActiveSheet();
+      // Google Sheets ID - 請替換為您的實際 Sheets ID
+      const sheet = SpreadsheetApp.openById('YOUR_SPREADSHEET_ID').getActiveSheet();
       
-      // 確保標題行存在
+      // 確保標題行存在 (包含新的電子郵件欄位)
       if (sheet.getLastRow() === 0) {
-        sheet.getRange(1, 1, 1, 4).setValues([['投票者姓名', '投票日期', '投票時間', '有效性狀態']]);
+        sheet.getRange(1, 1, 1, 5).setValues([['投票者姓名', '電子郵件地址', '投票日期', '投票時間', '有效性狀態']]);
       }
       
       // 添加數據
       data.data.forEach(record => {
         sheet.appendRow([
           record.voterName,
+          record.emailAddress,
           record.votingDate,
           record.votingTime,
           record.validityStatus
@@ -452,13 +473,18 @@ function doPost(e) {
       
       return ContentService
         .createTextOutput(JSON.stringify({success: true}))
-        .setMimeType(ContentService.MimeType.JSON);
+        .setMimeType(ContentService.MimeType.JSON)
+        .setHeaders({
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type'
+        });
     }
     
   } catch (error) {
     // 錯誤處理和日誌記錄
     try {
-      const spreadsheet = SpreadsheetApp.openById('123abc');
+      const spreadsheet = SpreadsheetApp.openById('YOUR_SPREADSHEET_ID');
       
       // 檢查是否有 'log' 工作表，沒有就新增
       let logSheet;
@@ -489,7 +515,12 @@ function doPost(e) {
     
     return ContentService
       .createTextOutput(JSON.stringify({success: false, error: error.toString()}))
-      .setMimeType(ContentService.MimeType.JSON);
+      .setMimeType(ContentService.MimeType.JSON)
+      .setHeaders({
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type'
+      });
   }
 }
 
@@ -499,5 +530,18 @@ function doPost(e) {
 7. 將您的 Google Sheets ID 替換到 YOUR_SPREADSHEET_ID
 
 Google Sheets ID 可以從試算表 URL 中取得：
-https://docs.google.com/spreadsheets/d/123abc/edit
+https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit
+
+Google Sheets 數據欄位 (更新版本)：
+- 投票者姓名：使用者輸入的姓名
+- 電子郵件地址：使用者輸入的電子郵件 (新增)
+- 投票日期：選擇的日期
+- 投票時間：提交表單的時間戳記
+- 有效性狀態：固定為「有效」
+
+CORS 解決方案：
+此實作使用雙重提交機制：
+1. 主要方法：隱藏表單提交 (避開 CORS 限制)
+2. 備用方法：Fetch API (如果表單提交失敗)
+3. 改進的錯誤處理和用戶反饋
 */
