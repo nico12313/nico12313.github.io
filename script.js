@@ -204,7 +204,7 @@ class DateSelector {
     }
 
     async submitToGoogleSheets(records) {
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwJXL16ElCK1h0BgLrc1lQ2yU_Pw3QvF-78bZKmlRLh_jrd1luod0PQGgKn43masf8T/exec';
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwHbsuLKmY43dmLaXCnmCXGxf1wOw_IxlWOYF7lsVJBUp9saCKX5pH9M87bz2hMO3EF/exec';
         
         if (SCRIPT_URL === 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE') {
             // 開發模式 - 模擬提交
