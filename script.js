@@ -49,7 +49,7 @@ class DateSelector {
         const voterNameInput = document.getElementById('voterName');
         const emailInput = document.getElementById('emailAddress');
         voterNameInput.addEventListener('input', () => this.validateForm());
-        emailInput.addEventListener('input', () => this.validateForm());
+        // emailInput.addEventListener('input', () => this.validateForm());
     }
 
     addDate() {
@@ -130,29 +130,32 @@ class DateSelector {
         return `${year}年${month}月${day}日 (週${weekday})`;
     }
 
+    // email 沒寫就算了
     validateForm() {
         const voterName = document.getElementById('voterName').value.trim();
         const emailAddress = document.getElementById('emailAddress').value.trim();
         const submitBtn = document.getElementById('submitBtn');
         
-        // 驗證電子郵件格式
-        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        const isEmailValid = emailPattern.test(emailAddress);
+        // // 驗證電子郵件格式
+        // const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        // const isEmailValid = emailPattern.test(emailAddress);
         
-        const isValid = voterName.length > 0 && emailAddress.length > 0 && isEmailValid && this.selectedDates.size > 0;
+        // const isValid = voterName.length > 0 && emailAddress.length > 0 && isEmailValid && this.selectedDates.size > 0;
+        const isValid = voterName.length > 0 && this.selectedDates.size > 0;
         submitBtn.disabled = !isValid;
         
-        // 顯示電子郵件格式錯誤提示
-        if (emailAddress.length > 0 && !isEmailValid) {
-            this.showMessage('請輸入有效的電子郵件地址', 'error');
-        }
+        // // 顯示電子郵件格式錯誤提示
+        // if (emailAddress.length > 0 && !isEmailValid) {
+        //     this.showMessage('請輸入有效的電子郵件地址', 'error');
+        // }
         
         return isValid;
     }
 
     async submitForm() {
         if (!this.validateForm()) {
-            this.showMessage('請填寫姓名、有效電子郵件並選擇至少一個日期', 'error');
+            // this.showMessage('請填寫姓名、有效電子郵件並選擇至少一個日期', 'error');
+            this.showMessage('請填寫姓名、並選擇至少一個日期', 'error');
             return;
         }
 
@@ -183,7 +186,7 @@ class DateSelector {
                 votingDate: date,
                 votingTime: votingTime,
                 emailAddress: emailAddress,
-                validityStatus: '有效'
+                validityStatus: '1'
             }));
 
             await this.submitToGoogleSheets(records);
