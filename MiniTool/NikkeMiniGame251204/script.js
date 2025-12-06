@@ -886,20 +886,16 @@ class NikkeSolver {
         const cols = matrix[0].length;
         
         // 尋找所有矩形區域，其數字和為目標值
+        // 矩形可以包含已被消除的格子（null/0），只計算有數字的格子
         for (let r1 = 0; r1 < rows; r1++) {
             for (let c1 = 0; c1 < cols; c1++) {
-                // 檢查起點是否有效
-                if (binary[r1][c1] === 0 || matrix[r1][c1] === null) continue;
-                
                 for (let r2 = r1; r2 < rows; r2++) {
                     for (let c2 = c1; c2 < cols; c2++) {
-                        // 檢查終點是否有效
-                        if (binary[r2][c2] === 0 || matrix[r2][c2] === null) continue;
-                        
-                        // 計算矩形區域的數字和
+                        // 計算矩形區域的數字和（允許包含空格）
                         const rectInfo = this.calculateRectangleSum(matrix, binary, r1, c1, r2, c2);
                         
-                        if (rectInfo.sum === CONFIG.TARGET_SUM && rectInfo.valid) {
+                        // 必須有至少一個有效格子，且和為目標值
+                        if (rectInfo.sum === CONFIG.TARGET_SUM && rectInfo.cells.length > 0) {
                             rectangles.push({
                                 topLeft: { row: r1, col: c1 },
                                 bottomRight: { row: r2, col: c2 },
@@ -921,23 +917,19 @@ class NikkeSolver {
         let sum = 0;
         const cells = [];
         const numbers = [];
-        let valid = true;
         
         for (let r = r1; r <= r2; r++) {
             for (let c = c1; c <= c2; c++) {
-                // 檢查矩形內所有格子是否都有方塊
-                if (binary[r][c] === 0 || matrix[r][c] === null) {
-                    valid = false;
-                    break;
+                // 只計算有方塊的格子，跳過已消除的格子
+                if (binary[r][c] === 1 && matrix[r][c] !== null) {
+                    sum += matrix[r][c];
+                    cells.push({ row: r, col: c });
+                    numbers.push(matrix[r][c]);
                 }
-                sum += matrix[r][c];
-                cells.push({ row: r, col: c });
-                numbers.push(matrix[r][c]);
             }
-            if (!valid) break;
         }
         
-        return { sum, cells, numbers, valid };
+        return { sum, cells, numbers, valid: cells.length > 0 };
     }
 
     removeDuplicatePaths(paths) {
