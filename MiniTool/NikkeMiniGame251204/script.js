@@ -14,6 +14,13 @@ const CONFIG = {
     DEFAULT_GRID_ROWS: 6,
     DEFAULT_GRID_COLS: 6,
     
+    // 支援的網格尺寸（寬 × 高）
+    SUPPORTED_SIZES: [
+        { cols: 8, rows: 14 },
+        { cols: 9, rows: 15 },
+        { cols: 10, rows: 16 }
+    ],
+    
     // 圖像處理參數
     GRID_SIZE_RATIO: 0.7,           // 網格佔畫面的比例 (70%)
     DARK_PIXEL_BRIGHTNESS: 50,       // 暗色像素亮度閾值
@@ -40,12 +47,18 @@ class NikkeSolver {
         this.currentStrategy = 'greedy';
         this.currentStepIndex = 0;
         this.originalImage = null;
+        this.currentMode = 'image'; // 'image' or 'manual'
+        this.selectedSize = 'auto'; // 'auto', '8x14', '9x15', '10x16'
+        this.parsedManualArray = null;
+        this.needsTranspose = false;
         
         this.init();
     }
 
     init() {
         this.setupEventListeners();
+        this.setupModeToggle();
+        this.setupManualInput();
     }
 
     setupEventListeners() {
@@ -101,6 +114,219 @@ class NikkeSolver {
         // 下載按鈕
         document.getElementById('downloadJSON').addEventListener('click', () => this.downloadJSON());
         document.getElementById('downloadText').addEventListener('click', () => this.downloadText());
+
+        // 尺寸選擇
+        document.getElementById('gridSizeSelect').addEventListener('change', (e) => {
+            this.selectedSize = e.target.value;
+            if (this.currentMode === 'manual') {
+                this.validateManualInput();
+            }
+        });
+    }
+
+    setupModeToggle() {
+        const imageModeBtn = document.getElementById('imageModeBtn');
+        const manualModeBtn = document.getElementById('manualModeBtn');
+        const uploadSection = document.getElementById('uploadSection');
+        const manualSection = document.getElementById('manualSection');
+
+        imageModeBtn.addEventListener('click', () => {
+            this.currentMode = 'image';
+            imageModeBtn.classList.add('active');
+            manualModeBtn.classList.remove('active');
+            uploadSection.style.display = 'block';
+            manualSection.style.display = 'none';
+        });
+
+        manualModeBtn.addEventListener('click', () => {
+            this.currentMode = 'manual';
+            manualModeBtn.classList.add('active');
+            imageModeBtn.classList.remove('active');
+            uploadSection.style.display = 'none';
+            manualSection.style.display = 'block';
+        });
+    }
+
+    setupManualInput() {
+        const manualInput = document.getElementById('manualInput');
+        const parseBtn = document.getElementById('parseManualBtn');
+        const transposeBtn = document.getElementById('transposeBtn');
+
+        manualInput.addEventListener('input', () => this.validateManualInput());
+        parseBtn.addEventListener('click', () => this.parseManualArray());
+        transposeBtn.addEventListener('click', () => this.transposeArray());
+    }
+
+    validateManualInput() {
+        const input = document.getElementById('manualInput').value.trim();
+        const infoDiv = document.getElementById('manualInputInfo');
+        const parseBtn = document.getElementById('parseManualBtn');
+        const transposePrompt = document.getElementById('transposePrompt');
+
+        if (!input) {
+            infoDiv.textContent = '';
+            infoDiv.className = 'manual-info';
+            parseBtn.disabled = true;
+            transposePrompt.style.display = 'none';
+            this.parsedManualArray = null;
+            return;
+        }
+
+        try {
+            // 嘗試解析 JSON
+            const parsed = JSON.parse(input);
+
+            // 驗證是否為二維陣列
+            if (!Array.isArray(parsed) || parsed.length === 0) {
+                throw new Error('請輸入有效的二維陣列');
+            }
+
+            if (!parsed.every(row => Array.isArray(row))) {
+                throw new Error('每一行必須是陣列');
+            }
+
+            // 驗證每行長度一致
+            const colCount = parsed[0].length;
+            if (!parsed.every(row => row.length === colCount)) {
+                throw new Error('每一行的元素數量必須一致');
+            }
+
+            // 驗證數值範圍 (0-9)
+            for (let r = 0; r < parsed.length; r++) {
+                for (let c = 0; c < parsed[r].length; c++) {
+                    const val = parsed[r][c];
+                    if (typeof val !== 'number' || !Number.isInteger(val) || val < 0 || val > 9) {
+                        throw new Error(`格子數值必須為 0-9 的整數（發現無效值 "${val}" 在第 ${r + 1} 行第 ${c + 1} 列）`);
+                    }
+                }
+            }
+
+            const rows = parsed.length;
+            const cols = colCount;
+
+            this.parsedManualArray = parsed;
+            
+            // 判斷尺寸是否需要轉置
+            const dimensionInfo = this.analyzeDimensions(rows, cols);
+            
+            if (dimensionInfo.needsTranspose) {
+                this.needsTranspose = true;
+                infoDiv.innerHTML = `✅ 格式正確！偵測到尺寸：<strong>${cols} × ${rows}</strong>（寬 × 高）`;
+                infoDiv.className = 'manual-info warning';
+                transposePrompt.style.display = 'flex';
+                document.getElementById('currentDimension').textContent = `${cols} × ${rows}`;
+            } else {
+                this.needsTranspose = false;
+                infoDiv.innerHTML = `✅ 格式正確！尺寸：<strong>${cols} × ${rows}</strong>（寬 × 高，共 ${rows} 行 ${cols} 列）`;
+                infoDiv.className = 'manual-info success';
+                transposePrompt.style.display = 'none';
+            }
+
+            parseBtn.disabled = false;
+
+        } catch (error) {
+            if (error instanceof SyntaxError) {
+                infoDiv.textContent = '❌ JSON 格式錯誤，請確認陣列格式正確';
+            } else {
+                infoDiv.textContent = '❌ ' + error.message;
+            }
+            infoDiv.className = 'manual-info error';
+            parseBtn.disabled = true;
+            transposePrompt.style.display = 'none';
+            this.parsedManualArray = null;
+        }
+    }
+
+    analyzeDimensions(rows, cols) {
+        // 支援的尺寸：8x14, 9x15, 10x16（寬×高）
+        // 正確格式：rows（行數）應該是高度，cols（列數）應該是寬度
+        // 例如：10x16 表示 10 列寬 × 16 行高，所以正確的陣列應該是 16 rows × 10 cols
+
+        const selectedSize = this.selectedSize;
+
+        if (selectedSize !== 'auto') {
+            // 使用者指定了尺寸
+            const [expectedCols, expectedRows] = selectedSize.split('x').map(Number);
+            
+            // 檢查是否匹配
+            if (rows === expectedRows && cols === expectedCols) {
+                return { valid: true, needsTranspose: false };
+            } else if (rows === expectedCols && cols === expectedRows) {
+                return { valid: true, needsTranspose: true };
+            }
+            return { valid: false, needsTranspose: false };
+        }
+
+        // 自動判斷模式
+        for (const size of CONFIG.SUPPORTED_SIZES) {
+            // 正確方向：rows = height, cols = width
+            if (rows === size.rows && cols === size.cols) {
+                return { valid: true, needsTranspose: false };
+            }
+            // 需要轉置：rows 和 cols 對調
+            if (rows === size.cols && cols === size.rows) {
+                return { valid: true, needsTranspose: true };
+            }
+        }
+
+        // 未匹配任何預設尺寸，但格式正確，不需轉置
+        return { valid: true, needsTranspose: false };
+    }
+
+    transposeArray() {
+        if (!this.parsedManualArray) return;
+
+        const original = this.parsedManualArray;
+        const rows = original.length;
+        const cols = original[0].length;
+
+        // 轉置陣列
+        const transposed = [];
+        for (let c = 0; c < cols; c++) {
+            const newRow = [];
+            for (let r = 0; r < rows; r++) {
+                newRow.push(original[r][c]);
+            }
+            transposed.push(newRow);
+        }
+
+        // 更新輸入框
+        document.getElementById('manualInput').value = JSON.stringify(transposed);
+        
+        // 重新驗證
+        this.validateManualInput();
+    }
+
+    parseManualArray() {
+        if (!this.parsedManualArray) {
+            alert('請先輸入有效的二維陣列');
+            return;
+        }
+
+        // 設定矩陣資料
+        this.valueMatrix = this.parsedManualArray.map(row => 
+            row.map(val => (val >= 0 && val <= 9) ? val : null)
+        );
+        
+        this.gridRows = this.valueMatrix.length;
+        this.gridCols = this.valueMatrix[0].length;
+
+        // 生成二元陣列
+        this.binaryMatrix = this.valueMatrix.map(row => 
+            row.map(val => val !== null ? 1 : 0)
+        );
+
+        // 顯示結果
+        this.displayResults();
+        
+        // 計算通關步驟
+        this.calculateSteps();
+        
+        // 顯示結果區域
+        document.getElementById('resultSection').style.display = 'block';
+
+        // 滾動到結果區域
+        document.getElementById('resultSection').scrollIntoView({ behavior: 'smooth' });
     }
 
     handleImageUpload(file) {

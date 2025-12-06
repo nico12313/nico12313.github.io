@@ -21,8 +21,27 @@
         <h1 class="title">🎮 Nikke 小遊戲解析器</h1>
         <p class="subtitle">上傳截圖，自動產生通關步驟（消除和為10的方塊）</p>
 
+        <!-- 輸入模式選擇 -->
+        <div class="mode-section">
+            <div class="mode-toggle">
+                <button type="button" class="mode-btn active" data-mode="image" id="imageModeBtn">📷 上傳圖片</button>
+                <button type="button" class="mode-btn" data-mode="manual" id="manualModeBtn">⌨️ 手動輸入</button>
+            </div>
+        </div>
+
+        <!-- 格子尺寸選擇 -->
+        <div class="size-section">
+            <label for="gridSizeSelect" class="size-label">📐 格子尺寸：</label>
+            <select id="gridSizeSelect" class="size-select">
+                <option value="auto">Auto（自動判斷）</option>
+                <option value="8x14">8 × 14</option>
+                <option value="9x15">9 × 15</option>
+                <option value="10x16">10 × 16</option>
+            </select>
+        </div>
+
         <!-- 上傳區域 -->
-        <div class="upload-section">
+        <div class="upload-section" id="uploadSection">
             <div class="upload-header">📷 上傳遊戲截圖</div>
             <div class="upload-area" id="uploadArea">
                 <input type="file" id="imageInput" accept="image/png, image/jpeg, image/jpg" hidden>
@@ -34,6 +53,23 @@
                 <img id="previewImage" class="preview-image" style="display: none;">
             </div>
             <button type="button" id="analyzeBtn" class="analyze-btn" disabled>🔍 分析圖片</button>
+        </div>
+
+        <!-- 手動輸入區域 -->
+        <div class="manual-section" id="manualSection" style="display: none;">
+            <div class="manual-header">⌨️ 手動輸入數值陣列</div>
+            <div class="manual-description">
+                <p>請貼入 JSON 格式的二維數字陣列，例如：</p>
+                <code class="manual-example">[[8,8,5,2,3,1,1,8,5,8],[4,4,2,1,4,4,1,7,7,7],...]</code>
+                <p class="manual-hint">格子數值僅允許 0-9</p>
+            </div>
+            <textarea id="manualInput" class="manual-textarea" placeholder="在此貼入二維陣列...&#10;&#10;範例格式：&#10;[[1,2,3,...],[4,5,6,...],...]"></textarea>
+            <div id="manualInputInfo" class="manual-info"></div>
+            <div id="transposePrompt" class="transpose-prompt" style="display: none;">
+                <p class="transpose-warning">⚠️ 偵測到陣列可能需要轉置（目前為 <span id="currentDimension"></span>）</p>
+                <button type="button" id="transposeBtn" class="transpose-btn">🔄 一鍵轉置</button>
+            </div>
+            <button type="button" id="parseManualBtn" class="analyze-btn" disabled>🔍 解析陣列</button>
         </div>
 
         <!-- 載入狀態 -->
@@ -109,12 +145,21 @@
             <div class="help-header">📖 使用說明</div>
             <div class="help-content">
                 <p><strong>遊戲規則：</strong>當拖曳的方塊上數字總和為10時，即可消除方塊並獲得分數。</p>
+                <p><strong>📷 上傳圖片模式：</strong></p>
                 <ol>
                     <li>上傳 Nikke 小遊戲的截圖（包含數字格子畫面）</li>
                     <li>系統會自動偵測格子位置並使用 OCR 辨識數字</li>
                     <li>若辨識有誤，可點擊格子手動修正</li>
                     <li>選擇策略後，系統會產生消除步驟</li>
                     <li>按照步驟指示，在遊戲中依序點選相鄰格子消除方塊</li>
+                </ol>
+                <p><strong>⌨️ 手動輸入模式：</strong></p>
+                <ol>
+                    <li>切換到「手動輸入」標籤</li>
+                    <li>貼入 JSON 格式的二維陣列，例如：<code>[[1,2,3],[4,5,6],...]</code></li>
+                    <li>系統會自動判斷尺寸（如 10×16）</li>
+                    <li>若偵測到需要轉置（如 16×10），可點擊「一鍵轉置」按鈕</li>
+                    <li>格子數值僅允許 0-9</li>
                 </ol>
                 <p><strong>注意：</strong>路徑必須由相鄰格子組成（上下左右相鄰）。座標系統使用 1-based（第一行/列為1）。</p>
             </div>
