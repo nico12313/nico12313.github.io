@@ -1048,21 +1048,16 @@ class NikkeSolver {
 
     initVisualization() {
         const canvas = document.getElementById('visualCanvas');
-        const container = document.getElementById('visualizationContainer');
-        
-        // 計算每個格子的最佳尺寸
-        const maxContainerWidth = container.clientWidth - 30;
-        
-        // 根據格子數量計算 cell 尺寸，確保完整顯示所有格子
-        const cellSizeByWidth = maxContainerWidth / this.gridCols;
-        const cellSizeByHeight = CONFIG.MAX_CANVAS_HEIGHT / this.gridRows;
-        
-        // 使用較小的 cellSize 以確保完整顯示
-        const cellSize = Math.min(cellSizeByWidth, cellSizeByHeight, CONFIG.MAX_CELL_SIZE);
         
         // 設置 canvas 大小 - 動態根據實際格子數量
-        canvas.width = cellSize * this.gridCols;
-        canvas.height = cellSize * this.gridRows;
+        // canvas.width = cellSize * this.gridCols;
+        // canvas.height = cellSize * this.gridRows;
+        
+        const vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+        const fixedHeight = 80 * (vh / 100);
+        const fixedWidth = fixedHeight * (10 / 16);
+        canvas.width = fixedWidth;
+        canvas.height = fixedHeight;
         
         this.drawGrid();
     }
