@@ -63,6 +63,12 @@ class NikkeSolver {
 
     // Toast notification helper using SweetAlert2
     showToast(message, type = 'info') {
+        // Fallback to console if SweetAlert2 is not loaded
+        if (typeof Swal === 'undefined') {
+            console.log(`[${type.toUpperCase()}] ${message}`);
+            return;
+        }
+
         const iconMap = {
             success: 'success',
             error: 'error',
