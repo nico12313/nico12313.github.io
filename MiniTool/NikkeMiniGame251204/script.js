@@ -27,6 +27,10 @@ const CONFIG = {
     EMPTY_CELL_THRESHOLD: 0.8,       // 空格判定閾值 (80% 暗色像素)
     MIN_CELL_SIZE: 20,               // 最小格子大小 (像素)
     
+    // 視覺化參數
+    MAX_CANVAS_HEIGHT: 800,          // Canvas 最大高度限制 (像素)
+    MAX_CELL_SIZE: 50,               // 格子最大尺寸 (像素)
+    
     // 演算法參數
     MAX_GREEDY_STEPS: 100,           // 貪心策略最大步數
     BACKTRACK_MAX_DEPTH: 50,         // 回溯演算法最大深度
@@ -1034,14 +1038,13 @@ class NikkeSolver {
         
         // 計算每個格子的最佳尺寸
         const maxContainerWidth = container.clientWidth - 30;
-        const maxContainerHeight = 800; // 最大高度限制
         
         // 根據格子數量計算 cell 尺寸，確保完整顯示所有格子
         const cellSizeByWidth = maxContainerWidth / this.gridCols;
-        const cellSizeByHeight = maxContainerHeight / this.gridRows;
+        const cellSizeByHeight = CONFIG.MAX_CANVAS_HEIGHT / this.gridRows;
         
         // 使用較小的 cellSize 以確保完整顯示
-        const cellSize = Math.min(cellSizeByWidth, cellSizeByHeight, 50); // 50px 是格子的最大尺寸
+        const cellSize = Math.min(cellSizeByWidth, cellSizeByHeight, CONFIG.MAX_CELL_SIZE);
         
         // 設置 canvas 大小 - 動態根據實際格子數量
         canvas.width = cellSize * this.gridCols;
