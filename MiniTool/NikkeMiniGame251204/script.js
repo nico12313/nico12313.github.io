@@ -313,7 +313,7 @@ class NikkeSolver {
 
         // 生成二元陣列
         this.binaryMatrix = this.valueMatrix.map(row => 
-            row.map(val => val !== null && val >= 0 ? 1 : 0)
+            row.map(val => val !== null ? 1 : 0)
         );
 
         // 顯示結果
