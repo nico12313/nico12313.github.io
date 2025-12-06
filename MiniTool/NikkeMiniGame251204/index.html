@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nikke 小遊戲解析器 - 通關步驟產生器</title>
+    <meta name="description" content="上傳 Nikke 小遊戲截圖，自動分析格子與數字，產生通關步驟指示">
+    <meta property="og:title" content="Nikke 小遊戲解析器">
+    <meta property="og:description" content="上傳截圖自動產生通關步驟，消除和為10的方塊組合">
+    <meta property="og:type" content="website">
+    <link rel="icon" href="../../images/cmonBruh.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="../../images/cmonBruh.ico" type="image/x-icon">
+    <link rel="stylesheet" href="styles.css">
+    <!-- Tesseract.js for OCR -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <h1 class="title">🎮 Nikke 小遊戲解析器</h1>
+        <p class="subtitle">上傳截圖，自動產生通關步驟（消除和為10的方塊）</p>
+
+        <!-- 上傳區域 -->
+        <div class="upload-section">
+            <div class="upload-header">📷 上傳遊戲截圖</div>
+            <div class="upload-area" id="uploadArea">
+                <input type="file" id="imageInput" accept="image/png, image/jpeg, image/jpg" hidden>
+                <div class="upload-placeholder" id="uploadPlaceholder">
+                    <div class="upload-icon">📁</div>
+                    <p>點擊或拖曳圖片至此處</p>
+                    <p class="upload-hint">支援 PNG / JPG 格式</p>
+                </div>
+                <img id="previewImage" class="preview-image" style="display: none;">
+            </div>
+            <button type="button" id="analyzeBtn" class="analyze-btn" disabled>🔍 分析圖片</button>
+        </div>
+
+        <!-- 載入狀態 -->
+        <div id="loadingSection" class="loading-section" style="display: none;">
+            <div class="loading-spinner"></div>
+            <p id="loadingText">正在分析中...</p>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <p id="progressText" class="progress-text">準備中...</p>
+        </div>
+
+        <!-- 結果區域 -->
+        <div id="resultSection" class="result-section" style="display: none;">
+            <!-- 數值矩陣 -->
+            <div class="result-card">
+                <div class="result-header">📊 解析結果 - 數值矩陣</div>
+                <div class="matrix-container" id="valueMatrix"></div>
+                <div class="matrix-info" id="matrixInfo"></div>
+            </div>
+
+            <!-- 二元陣列 -->
+            <div class="result-card">
+                <div class="result-header">🔢 二元陣列（1=有方塊，0=空）</div>
+                <div class="matrix-container binary-matrix" id="binaryMatrix"></div>
+            </div>
+
+            <!-- 手動修正區域 -->
+            <div class="result-card">
+                <div class="result-header">✏️ 手動修正數字（點擊格子修改）</div>
+                <div class="matrix-container editable-matrix" id="editableMatrix"></div>
+                <button type="button" id="recalculateBtn" class="recalculate-btn">🔄 重新計算步驟</button>
+            </div>
+
+            <!-- 通關步驟 -->
+            <div class="result-card">
+                <div class="result-header">🎯 通關步驟指示</div>
+                <div class="strategy-toggle">
+                    <button type="button" class="strategy-btn active" data-strategy="greedy">貪心策略（快速）</button>
+                    <button type="button" class="strategy-btn" data-strategy="optimal">最佳化策略（最多消除）</button>
+                </div>
+                <div class="steps-container" id="stepsContainer">
+                    <p class="no-steps">尚未產生步驟</p>
+                </div>
+                <div class="steps-summary" id="stepsSummary"></div>
+            </div>
+
+            <!-- 視覺化 -->
+            <div class="result-card">
+                <div class="result-header">🖼️ 視覺化路徑標示</div>
+                <div class="visualization-container" id="visualizationContainer">
+                    <canvas id="visualCanvas"></canvas>
+                </div>
+                <div class="step-navigation" id="stepNavigation" style="display: none;">
+                    <button type="button" id="prevStepBtn" class="nav-btn">⬅️ 上一步</button>
+                    <span id="currentStepDisplay">步驟 1 / 1</span>
+                    <button type="button" id="nextStepBtn" class="nav-btn">下一步 ➡️</button>
+                </div>
+            </div>
+
+            <!-- 下載區 -->
+            <div class="result-card">
+                <div class="result-header">📥 下載步驟清單</div>
+                <div class="download-buttons">
+                    <button type="button" id="downloadJSON" class="download-btn">下載 JSON</button>
+                    <button type="button" id="downloadText" class="download-btn">下載純文字</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 使用說明 -->
+        <div class="help-section">
+            <div class="help-header">📖 使用說明</div>
+            <div class="help-content">
+                <p><strong>遊戲規則：</strong>當拖曳的方塊上數字總和為10時，即可消除方塊並獲得分數。</p>
+                <ol>
+                    <li>上傳 Nikke 小遊戲的截圖（包含數字格子畫面）</li>
+                    <li>系統會自動偵測格子位置並使用 OCR 辨識數字</li>
+                    <li>若辨識有誤，可點擊格子手動修正</li>
+                    <li>選擇策略後，系統會產生消除步驟</li>
+                    <li>按照步驟指示，在遊戲中依序點選相鄰格子消除方塊</li>
+                </ol>
+                <p><strong>注意：</strong>路徑必須由相鄰格子組成（上下左右相鄰）。座標系統使用 1-based（第一行/列為1）。</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
