@@ -8,6 +8,27 @@
  * 4. 產生通關步驟文字指示
  */
 
+// 可配置的常數
+const CONFIG = {
+    // 預設網格大小
+    DEFAULT_GRID_ROWS: 6,
+    DEFAULT_GRID_COLS: 6,
+    
+    // 圖像處理參數
+    GRID_SIZE_RATIO: 0.7,           // 網格佔畫面的比例 (70%)
+    DARK_PIXEL_BRIGHTNESS: 50,       // 暗色像素亮度閾值
+    EMPTY_CELL_THRESHOLD: 0.8,       // 空格判定閾值 (80% 暗色像素)
+    MIN_CELL_SIZE: 20,               // 最小格子大小 (像素)
+    
+    // 演算法參數
+    MAX_GREEDY_STEPS: 100,           // 貪心策略最大步數
+    BACKTRACK_MAX_DEPTH: 50,         // 回溯演算法最大深度
+    BACKTRACK_BRANCH_LIMIT: 10,      // 回溯演算法分支限制
+    
+    // 遊戲規則
+    TARGET_SUM: 10                   // 目標數字和
+};
+
 class NikkeSolver {
     constructor() {
         this.imageData = null;
@@ -185,9 +206,9 @@ class NikkeSolver {
             this.gridCols = gridInfo.cols;
             this.valueMatrix = await this.extractNumbers(ctx, gridInfo);
         } else {
-            // 如果無法自動偵測，使用預設 6x6 網格
-            this.gridRows = 6;
-            this.gridCols = 6;
+            // 如果無法自動偵測，使用預設網格大小
+            this.gridRows = CONFIG.DEFAULT_GRID_ROWS;
+            this.gridCols = CONFIG.DEFAULT_GRID_COLS;
             this.valueMatrix = await this.extractNumbersDefault(ctx, canvas.width, canvas.height);
         }
         
@@ -202,16 +223,16 @@ class NikkeSolver {
         // 實際應用中可以使用更複雜的邊緣偵測算法
         
         // 預設假設網格在畫面中心，佔約 60-80% 的寬度
-        const estimatedGridSize = Math.min(width, height) * 0.7;
-        const cellSize = estimatedGridSize / 6; // 假設 6x6
+        const estimatedGridSize = Math.min(width, height) * CONFIG.GRID_SIZE_RATIO;
+        const cellSize = estimatedGridSize / CONFIG.DEFAULT_GRID_COLS;
         
-        if (cellSize < 20) {
+        if (cellSize < CONFIG.MIN_CELL_SIZE) {
             return null; // 圖片太小，無法準確偵測
         }
         
         return {
-            rows: 6,
-            cols: 6,
+            rows: CONFIG.DEFAULT_GRID_ROWS,
+            cols: CONFIG.DEFAULT_GRID_COLS,
             startX: (width - estimatedGridSize) / 2,
             startY: (height - estimatedGridSize) / 2,
             cellWidth: cellSize,
@@ -260,15 +281,15 @@ class NikkeSolver {
     }
 
     async extractNumbersDefault(ctx, width, height) {
-        // 當無法準確偵測網格時，使用預設的 6x6 網格
-        const gridSize = Math.min(width, height) * 0.7;
-        const cellSize = gridSize / 6;
+        // 當無法準確偵測網格時，使用預設網格大小
+        const gridSize = Math.min(width, height) * CONFIG.GRID_SIZE_RATIO;
+        const cellSize = gridSize / CONFIG.DEFAULT_GRID_COLS;
         const startX = (width - gridSize) / 2;
         const startY = (height - gridSize) / 2;
         
         return this.extractNumbers(ctx, {
-            rows: 6,
-            cols: 6,
+            rows: CONFIG.DEFAULT_GRID_ROWS,
+            cols: CONFIG.DEFAULT_GRID_COLS,
             startX,
             startY,
             cellWidth: cellSize,
@@ -288,13 +309,13 @@ class NikkeSolver {
             const b = data[i + 2];
             const brightness = (r + g + b) / 3;
             
-            if (brightness < 50) {
+            if (brightness < CONFIG.DARK_PIXEL_BRIGHTNESS) {
                 darkPixels++;
             }
         }
         
-        // 如果超過 80% 是暗色像素，認為是空格
-        return (darkPixels / totalPixels) > 0.8;
+        // 如果超過閾值比例是暗色像素，認為是空格
+        return (darkPixels / totalPixels) > CONFIG.EMPTY_CELL_THRESHOLD;
     }
 
     async recognizeCellNumber(cellCanvas) {
@@ -318,12 +339,12 @@ class NikkeSolver {
                 return number;
             }
             
-            // 如果 OCR 無法識別，返回隨機數字（1-9）
-            return Math.floor(Math.random() * 9) + 1;
+            // 如果 OCR 無法識別，返回 null 讓用戶手動修正
+            return null;
             
         } catch {
-            // OCR 失敗時返回隨機數字
-            return Math.floor(Math.random() * 9) + 1;
+            // OCR 失敗時返回 null，讓用戶手動修正
+            return null;
         }
     }
 
@@ -511,10 +532,10 @@ class NikkeSolver {
         let stepCount = 0;
         let changed = true;
         
-        while (changed && stepCount < 100) {
+        while (changed && stepCount < CONFIG.MAX_GREEDY_STEPS) {
             changed = false;
             
-            // 尋找所有可能的路徑（和為10）
+            // 尋找所有可能的路徑（和為目標值）
             const paths = this.findAllPathsSumTo10(matrix, binary);
             
             if (paths.length > 0) {
@@ -527,7 +548,7 @@ class NikkeSolver {
                     stepNumber: stepCount,
                     cells: bestPath.cells,
                     numbers: bestPath.numbers,
-                    sum: 10
+                    sum: CONFIG.TARGET_SUM
                 });
                 
                 // 更新矩陣（移除選中的方塊）
@@ -550,7 +571,7 @@ class NikkeSolver {
     }
 
     backtrackOptimal(matrix, binary, currentSteps, removed, bestResult, depth) {
-        if (depth > 50) return; // 限制搜索深度
+        if (depth > CONFIG.BACKTRACK_MAX_DEPTH) return; // 限制搜索深度
         
         const paths = this.findAllPathsSumTo10(matrix, binary);
         
@@ -563,8 +584,8 @@ class NikkeSolver {
             return;
         }
         
-        // 嘗試每條路徑
-        for (const path of paths.slice(0, 10)) { // 限制分支數
+        // 嘗試每條路徑（限制分支數以控制計算時間）
+        for (const path of paths.slice(0, CONFIG.BACKTRACK_BRANCH_LIMIT)) {
             const matrixCopy = matrix.map(row => [...row]);
             const binaryCopy = binary.map(row => [...row]);
             
@@ -614,14 +635,14 @@ class NikkeSolver {
         const value = matrix[row][col];
         const newSum = currentSum + value;
         
-        if (newSum > 10) return; // 超過10，停止搜索
+        if (newSum > CONFIG.TARGET_SUM) return; // 超過目標值，停止搜索
         
         visited[row][col] = true;
         currentPath.push({ row, col });
         currentNumbers.push(value);
         
-        if (newSum === 10 && currentPath.length >= 2) {
-            // 找到一條和為10的路徑
+        if (newSum === CONFIG.TARGET_SUM && currentPath.length >= 2) {
+            // 找到一條和為目標值的路徑
             paths.push({
                 cells: [...currentPath],
                 numbers: [...currentNumbers]
@@ -665,7 +686,7 @@ class NikkeSolver {
         const summary = document.getElementById('stepsSummary');
         
         if (this.steps.length === 0) {
-            container.innerHTML = '<p class="no-steps">沒有找到可消除的組合（和為10的相鄰路徑）</p>';
+            container.innerHTML = `<p class="no-steps">沒有找到可消除的組合（和為 ${CONFIG.TARGET_SUM} 的相鄰路徑）</p>`;
             summary.innerHTML = '';
             document.getElementById('stepNavigation').style.display = 'none';
             return;
