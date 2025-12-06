@@ -4,7 +4,7 @@
  * 功能：
  * 1. 上傳遊戲截圖並使用 OCR 辨識數字格子
  * 2. 生成數值矩陣和二元陣列
- * 3. 計算和為 10 的相鄰路徑組合
+ * 3. 計算和為 10 的矩形區域組合
  * 4. 產生通關步驟文字指示
  */
 
@@ -27,6 +27,10 @@ const CONFIG = {
     EMPTY_CELL_THRESHOLD: 0.8,       // 空格判定閾值 (80% 暗色像素)
     MIN_CELL_SIZE: 20,               // 最小格子大小 (像素)
     
+    // 視覺化參數
+    MAX_CANVAS_HEIGHT: 800,          // Canvas 最大高度限制 (像素)
+    MAX_CELL_SIZE: 50,               // 格子最大尺寸 (像素)
+    
     // 演算法參數
     MAX_GREEDY_STEPS: 100,           // 貪心策略最大步數
     BACKTRACK_MAX_DEPTH: 50,         // 回溯演算法最大深度
@@ -47,7 +51,7 @@ class NikkeSolver {
         this.currentStrategy = 'greedy';
         this.currentStepIndex = 0;
         this.originalImage = null;
-        this.currentMode = 'image'; // 'image' or 'manual'
+        this.currentMode = 'manual'; // 'image' or 'manual' - default to manual
         this.selectedSize = 'auto'; // 'auto', '8x14', '9x15', '10x16'
         this.parsedManualArray = null;
         this.needsTranspose = false;
@@ -59,6 +63,39 @@ class NikkeSolver {
         this.setupEventListeners();
         this.setupModeToggle();
         this.setupManualInput();
+    }
+
+    // Toast notification helper using SweetAlert2
+    showToast(message, type = 'info') {
+        // Fallback to console if SweetAlert2 is not loaded
+        if (typeof Swal === 'undefined') {
+            console.log(`[${type.toUpperCase()}] ${message}`);
+            return;
+        }
+
+        const iconMap = {
+            success: 'success',
+            error: 'error',
+            warning: 'warning',
+            info: 'info'
+        };
+
+        const Toast = Swal.mixin({
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3000,
+            timerProgressBar: true,
+            didOpen: (toast) => {
+                toast.onmouseenter = Swal.stopTimer;
+                toast.onmouseleave = Swal.resumeTimer;
+            }
+        });
+
+        Toast.fire({
+            icon: iconMap[type] || 'info',
+            title: message
+        });
     }
 
     setupEventListeners() {
@@ -299,7 +336,7 @@ class NikkeSolver {
 
     parseManualArray() {
         if (!this.parsedManualArray) {
-            alert('請先輸入有效的二維陣列');
+            this.showToast('請先輸入有效的二維陣列', 'warning');
             return;
         }
 
@@ -325,13 +362,18 @@ class NikkeSolver {
         // 顯示結果區域
         document.getElementById('resultSection').style.display = 'block';
 
-        // 滾動到結果區域
-        document.getElementById('resultSection').scrollIntoView({ behavior: 'smooth' });
+        // 顯示成功訊息
+        this.showToast(`成功解析 ${this.gridCols} × ${this.gridRows} 陣列！`, 'success');
+
+        // 滾動到視覺化路徑區域
+        setTimeout(() => {
+            document.getElementById('visualizationContainer').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
     }
 
     handleImageUpload(file) {
         if (!file.type.match(/image\/(png|jpeg|jpg)/)) {
-            alert('請上傳 PNG 或 JPG 格式的圖片');
+            this.showToast('請上傳 PNG 或 JPG 格式的圖片', 'error');
             return;
         }
 
@@ -355,7 +397,7 @@ class NikkeSolver {
 
     async analyzeImage() {
         if (!this.originalImage) {
-            alert('請先上傳圖片');
+            this.showToast('請先上傳圖片', 'warning');
             return;
         }
 
@@ -386,7 +428,7 @@ class NikkeSolver {
             
         } catch (error) {
             console.error('分析錯誤:', error);
-            alert('分析過程發生錯誤，請確認圖片格式正確或嘗試其他截圖');
+            this.showToast('分析過程發生錯誤，請確認圖片格式正確或嘗試其他截圖', 'error');
             this.showLoading(false);
         }
     }
@@ -761,24 +803,26 @@ class NikkeSolver {
         while (changed && stepCount < CONFIG.MAX_GREEDY_STEPS) {
             changed = false;
             
-            // 尋找所有可能的路徑（和為目標值）
-            const paths = this.findAllPathsSumTo10(matrix, binary);
+            // 尋找所有可能的矩形區域（和為目標值）
+            const rectangles = this.findAllPathsSumTo10(matrix, binary);
             
-            if (paths.length > 0) {
-                // 貪心策略：選擇最長的路徑（消除最多方塊）
-                paths.sort((a, b) => b.cells.length - a.cells.length);
-                const bestPath = paths[0];
+            if (rectangles.length > 0) {
+                // 貪心策略：選擇最大的矩形（消除最多方塊）
+                rectangles.sort((a, b) => b.cellCount - a.cellCount);
+                const bestRect = rectangles[0];
                 
                 stepCount++;
                 this.steps.push({
                     stepNumber: stepCount,
-                    cells: bestPath.cells,
-                    numbers: bestPath.numbers,
+                    topLeft: bestRect.topLeft,
+                    bottomRight: bestRect.bottomRight,
+                    cells: bestRect.cells,
+                    numbers: bestRect.numbers,
                     sum: CONFIG.TARGET_SUM
                 });
                 
                 // 更新矩陣（移除選中的方塊）
-                bestPath.cells.forEach(cell => {
+                bestRect.cells.forEach(cell => {
                     matrix[cell.row][cell.col] = null;
                     binary[cell.row][cell.col] = 0;
                 });
@@ -799,9 +843,9 @@ class NikkeSolver {
     backtrackOptimal(matrix, binary, currentSteps, removed, bestResult, depth) {
         if (depth > CONFIG.BACKTRACK_MAX_DEPTH) return; // 限制搜索深度
         
-        const paths = this.findAllPathsSumTo10(matrix, binary);
+        const rectangles = this.findAllPathsSumTo10(matrix, binary);
         
-        if (paths.length === 0) {
+        if (rectangles.length === 0) {
             // 無法再消除，檢查是否是最佳解
             if (removed > bestResult.totalRemoved) {
                 bestResult.steps = currentSteps.map(s => ({...s}));
@@ -810,101 +854,97 @@ class NikkeSolver {
             return;
         }
         
-        // 嘗試每條路徑（限制分支數以控制計算時間）
-        for (const path of paths.slice(0, CONFIG.BACKTRACK_BRANCH_LIMIT)) {
+        // 嘗試每個矩形（限制分支數以控制計算時間）
+        for (const rect of rectangles.slice(0, CONFIG.BACKTRACK_BRANCH_LIMIT)) {
             const matrixCopy = matrix.map(row => [...row]);
             const binaryCopy = binary.map(row => [...row]);
             
             // 移除選中的方塊
-            path.cells.forEach(cell => {
+            rect.cells.forEach(cell => {
                 matrixCopy[cell.row][cell.col] = null;
                 binaryCopy[cell.row][cell.col] = 0;
             });
             
             const step = {
                 stepNumber: currentSteps.length + 1,
-                cells: path.cells,
-                numbers: path.numbers,
-                sum: 10
+                topLeft: rect.topLeft,
+                bottomRight: rect.bottomRight,
+                cells: rect.cells,
+                numbers: rect.numbers,
+                sum: CONFIG.TARGET_SUM
             };
             
             currentSteps.push(step);
-            this.backtrackOptimal(matrixCopy, binaryCopy, currentSteps, removed + path.cells.length, bestResult, depth + 1);
+            this.backtrackOptimal(matrixCopy, binaryCopy, currentSteps, removed + rect.cells.length, bestResult, depth + 1);
             currentSteps.pop();
         }
     }
 
     findAllPathsSumTo10(matrix, binary) {
-        const paths = [];
+        const rectangles = [];
         const rows = matrix.length;
         const cols = matrix[0].length;
         
-        // 從每個非空格子開始搜索
-        for (let row = 0; row < rows; row++) {
-            for (let col = 0; col < cols; col++) {
-                if (binary[row][col] === 1 && matrix[row][col] !== null) {
-                    const visited = Array(rows).fill(null).map(() => Array(cols).fill(false));
-                    this.dfsPath(matrix, binary, row, col, [], [], 0, paths, visited);
+        // 尋找所有矩形區域，其數字和為目標值
+        // 矩形可以包含已被消除的格子（null/0），只計算有數字的格子
+        for (let r1 = 0; r1 < rows; r1++) {
+            for (let c1 = 0; c1 < cols; c1++) {
+                for (let r2 = r1; r2 < rows; r2++) {
+                    for (let c2 = c1; c2 < cols; c2++) {
+                        // 計算矩形區域的數字和（允許包含空格）
+                        const rectInfo = this.calculateRectangleSum(matrix, binary, r1, c1, r2, c2);
+                        
+                        // 必須有至少一個有效格子，且和為目標值
+                        if (rectInfo.sum === CONFIG.TARGET_SUM && rectInfo.cells.length > 0) {
+                            rectangles.push({
+                                topLeft: { row: r1, col: c1 },
+                                bottomRight: { row: r2, col: c2 },
+                                cells: rectInfo.cells,
+                                numbers: rectInfo.numbers,
+                                sum: rectInfo.sum,
+                                cellCount: rectInfo.cells.length
+                            });
+                        }
+                    }
                 }
             }
         }
         
-        // 去除重複路徑
-        return this.removeDuplicatePaths(paths);
+        return rectangles;
     }
 
-    dfsPath(matrix, binary, row, col, currentPath, currentNumbers, currentSum, paths, visited) {
-        if (row < 0 || row >= matrix.length || col < 0 || col >= matrix[0].length) return;
-        if (visited[row][col]) return;
-        if (binary[row][col] === 0 || matrix[row][col] === null) return;
+    calculateRectangleSum(matrix, binary, r1, c1, r2, c2) {
+        let sum = 0;
+        const cells = [];
+        const numbers = [];
         
-        const value = matrix[row][col];
-        const newSum = currentSum + value;
-        
-        if (newSum > CONFIG.TARGET_SUM) return; // 超過目標值，停止搜索
-        
-        visited[row][col] = true;
-        currentPath.push({ row, col });
-        currentNumbers.push(value);
-        
-        if (newSum === CONFIG.TARGET_SUM && currentPath.length >= 2) {
-            // 找到一條和為目標值的路徑
-            paths.push({
-                cells: [...currentPath],
-                numbers: [...currentNumbers]
-            });
-        }
-        
-        // 繼續搜索相鄰格子（上下左右）
-        const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
-        for (const [dr, dc] of directions) {
-            this.dfsPath(matrix, binary, row + dr, col + dc, currentPath, currentNumbers, newSum, paths, visited);
-        }
-        
-        // 回溯
-        currentPath.pop();
-        currentNumbers.pop();
-        visited[row][col] = false;
-    }
-
-    removeDuplicatePaths(paths) {
-        const unique = [];
-        const seen = new Set();
-        
-        for (const path of paths) {
-            // 將路徑的格子排序後作為唯一標識
-            const sortedCells = [...path.cells].sort((a, b) => 
-                a.row === b.row ? a.col - b.col : a.row - b.row
-            );
-            const key = sortedCells.map(c => `${c.row},${c.col}`).join('|');
-            
-            if (!seen.has(key)) {
-                seen.add(key);
-                unique.push(path);
+        for (let r = r1; r <= r2; r++) {
+            for (let c = c1; c <= c2; c++) {
+                // 只計算有方塊的格子，跳過已消除的格子
+                if (binary[r][c] === 1 && matrix[r][c] !== null) {
+                    sum += matrix[r][c];
+                    cells.push({ row: r, col: c });
+                    numbers.push(matrix[r][c]);
+                }
             }
         }
         
-        return unique;
+        return { sum, cells, numbers, valid: cells.length > 0 };
+    }
+
+    removeDuplicatePaths(paths) {
+        // 矩形不需要去重，因為每個矩形由 topLeft 和 bottomRight 唯一確定
+        return paths;
+    }
+
+    getOriginalValue(step, row, col) {
+        // 找出步驟中對應座標的數值
+        for (let i = 0; i < step.cells.length; i++) {
+            if (step.cells[i].row === row && step.cells[i].col === col) {
+                return step.numbers[i];
+            }
+        }
+        return '?';
     }
 
     displaySteps() {
@@ -912,7 +952,7 @@ class NikkeSolver {
         const summary = document.getElementById('stepsSummary');
         
         if (this.steps.length === 0) {
-            container.innerHTML = `<p class="no-steps">沒有找到可消除的組合（和為 ${CONFIG.TARGET_SUM} 的相鄰路徑）</p>`;
+            container.innerHTML = `<p class="no-steps">沒有找到可消除的組合（和為 ${CONFIG.TARGET_SUM} 的矩形區域）</p>`;
             summary.innerHTML = '';
             document.getElementById('stepNavigation').style.display = 'none';
             return;
@@ -925,17 +965,25 @@ class NikkeSolver {
             stepDiv.className = 'step-item';
             stepDiv.dataset.index = index;
             
-            // 生成座標描述（使用 1-based 座標）
-            const cellsDesc = step.cells.map((c, i) => 
-                `(${c.row + 1}, ${c.col + 1})=${step.numbers[i]}`
-            ).join(' → ');
+            // 取得矩形的左上角和右下角座標及數字（使用 1-based 座標）
+            const topLeft = step.topLeft;
+            const bottomRight = step.bottomRight;
+            const topLeftNum = this.getOriginalValue(step, topLeft.row, topLeft.col);
+            const bottomRightNum = this.getOriginalValue(step, bottomRight.row, bottomRight.col);
+            
+            // 判斷是單一格子還是矩形區域
+            const isSingleCell = topLeft.row === bottomRight.row && topLeft.col === bottomRight.col;
+            
+            let description;
+            if (isSingleCell) {
+                description = `選取格子 <strong>(${topLeft.row + 1}, ${topLeft.col + 1})</strong> [${topLeftNum}]`;
+            } else {
+                description = `選取矩形區域：左上 <strong>(${topLeft.row + 1}, ${topLeft.col + 1})</strong> [${topLeftNum}] → 右下 <strong>(${bottomRight.row + 1}, ${bottomRight.col + 1})</strong> [${bottomRightNum}]`;
+            }
             
             stepDiv.innerHTML = `
                 <div class="step-number">步驟 ${step.stepNumber}</div>
-                <div class="step-description">
-                    從格子 <strong>(${step.cells[0].row + 1}, ${step.cells[0].col + 1})</strong> 開始，
-                    依序選取相鄰格子，消除這些方塊。
-                </div>
+                <div class="step-description">${description}</div>
                 <div class="step-path">
                     ${step.cells.map((c, i) => 
                         `<span class="path-cell">(${c.row + 1},${c.col + 1}): ${step.numbers[i]}</span>`
@@ -992,12 +1040,16 @@ class NikkeSolver {
 
     initVisualization() {
         const canvas = document.getElementById('visualCanvas');
-        const container = document.getElementById('visualizationContainer');
         
-        // 設置 canvas 大小
-        const size = Math.min(container.clientWidth - 30, 500);
-        canvas.width = size;
-        canvas.height = size;
+        // 設置 canvas 大小 - 動態根據實際格子數量
+        // canvas.width = cellSize * this.gridCols;
+        // canvas.height = cellSize * this.gridRows;
+        
+        const vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+        const fixedHeight = 80 * (vh / 100);
+        const fixedWidth = fixedHeight * (10 / 16);
+        canvas.width = fixedWidth;
+        canvas.height = fixedHeight;
         
         this.drawGrid();
     }
@@ -1063,24 +1115,17 @@ class NikkeSolver {
         const cellSize = canvas.width / this.gridCols;
         const step = this.steps[stepIndex];
         
-        // 繪製路徑連線
-        if (step.cells.length > 1) {
+        // 繪製矩形區域邊框
+        if (step.topLeft && step.bottomRight) {
+            const rectX = step.topLeft.col * cellSize;
+            const rectY = step.topLeft.row * cellSize;
+            const rectWidth = (step.bottomRight.col - step.topLeft.col + 1) * cellSize;
+            const rectHeight = (step.bottomRight.row - step.topLeft.row + 1) * cellSize;
+            
+            // 繪製矩形外框
             ctx.strokeStyle = '#ff8c42';
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            
-            step.cells.forEach((cell, i) => {
-                const x = cell.col * cellSize + cellSize / 2;
-                const y = cell.row * cellSize + cellSize / 2;
-                
-                if (i === 0) {
-                    ctx.moveTo(x, y);
-                } else {
-                    ctx.lineTo(x, y);
-                }
-            });
-            
-            ctx.stroke();
+            ctx.lineWidth = 4;
+            ctx.strokeRect(rectX + 1, rectY + 1, rectWidth - 2, rectHeight - 2);
         }
         
         // 高亮選中的格子
@@ -1088,11 +1133,15 @@ class NikkeSolver {
             const x = cell.col * cellSize;
             const y = cell.row * cellSize;
             
+            // 判斷是左上角還是右下角
+            const isTopLeft = step.topLeft && cell.row === step.topLeft.row && cell.col === step.topLeft.col;
+            const isBottomRight = step.bottomRight && cell.row === step.bottomRight.row && cell.col === step.bottomRight.col;
+            
             // 繪製高亮背景
-            if (i === 0) {
-                ctx.fillStyle = '#4caf50'; // 起點綠色
-            } else if (i === step.cells.length - 1) {
-                ctx.fillStyle = '#f44336'; // 終點紅色
+            if (isTopLeft) {
+                ctx.fillStyle = '#4caf50'; // 左上角綠色
+            } else if (isBottomRight) {
+                ctx.fillStyle = '#f44336'; // 右下角紅色
             } else {
                 ctx.fillStyle = '#ff8c42'; // 中間橙色
             }
@@ -1109,11 +1158,6 @@ class NikkeSolver {
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(step.numbers[i].toString(), x + cellSize / 2, y + cellSize / 2);
-            
-            // 繪製序號
-            ctx.fillStyle = '#ffffff';
-            ctx.font = `bold ${cellSize * 0.25}px sans-serif`;
-            ctx.fillText((i + 1).toString(), x + cellSize - 10, y + 12);
         });
     }
 
@@ -1125,6 +1169,8 @@ class NikkeSolver {
             strategy: this.currentStrategy,
             steps: this.steps.map(step => ({
                 stepNumber: step.stepNumber,
+                topLeft: { row: step.topLeft.row + 1, col: step.topLeft.col + 1 }, // 1-based
+                bottomRight: { row: step.bottomRight.row + 1, col: step.bottomRight.col + 1 }, // 1-based
                 cells: step.cells.map(c => ({ row: c.row + 1, col: c.col + 1 })), // 1-based
                 numbers: step.numbers,
                 sum: step.sum
@@ -1153,8 +1199,16 @@ class NikkeSolver {
         text += '\n--- 通關步驟 ---\n\n';
         
         this.steps.forEach(step => {
+            const topLeftNum = this.getOriginalValue(step, step.topLeft.row, step.topLeft.col);
+            const bottomRightNum = this.getOriginalValue(step, step.bottomRight.row, step.bottomRight.col);
+            const isSingleCell = step.topLeft.row === step.bottomRight.row && step.topLeft.col === step.bottomRight.col;
+            
             text += `【步驟 ${step.stepNumber}】\n`;
-            text += `路徑：${step.cells.map((c, i) => `(${c.row + 1},${c.col + 1})=${step.numbers[i]}`).join(' → ')}\n`;
+            if (isSingleCell) {
+                text += `選取格子：(${step.topLeft.row + 1}, ${step.topLeft.col + 1}) [${topLeftNum}]\n`;
+            } else {
+                text += `矩形區域：左上 (${step.topLeft.row + 1}, ${step.topLeft.col + 1}) [${topLeftNum}] → 右下 (${step.bottomRight.row + 1}, ${step.bottomRight.col + 1}) [${bottomRightNum}]\n`;
+            }
             text += `數字和：${step.sum}\n\n`;
         });
         

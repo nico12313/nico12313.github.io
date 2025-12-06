@@ -14,6 +14,8 @@
     <link rel="stylesheet" href="styles.css">
     <!-- Tesseract.js for OCR -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <!-- SweetAlert2 for notifications -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 
 <body>
@@ -24,8 +26,8 @@
         <!-- 輸入模式選擇 -->
         <div class="mode-section">
             <div class="mode-toggle">
-                <button type="button" class="mode-btn active" data-mode="image" id="imageModeBtn">📷 上傳圖片</button>
-                <button type="button" class="mode-btn" data-mode="manual" id="manualModeBtn">⌨️ 手動輸入</button>
+                <button type="button" class="mode-btn" data-mode="image" id="imageModeBtn">📷 上傳圖片</button>
+                <button type="button" class="mode-btn active" data-mode="manual" id="manualModeBtn">⌨️ 手動輸入</button>
             </div>
         </div>
 
@@ -41,7 +43,7 @@
         </div>
 
         <!-- 上傳區域 -->
-        <div class="upload-section" id="uploadSection">
+        <div class="upload-section" id="uploadSection" style="display: none;">
             <div class="upload-header">📷 上傳遊戲截圖</div>
             <div class="upload-area" id="uploadArea">
                 <input type="file" id="imageInput" accept="image/png, image/jpeg, image/jpg" hidden>
@@ -56,9 +58,9 @@
         </div>
 
         <!-- 手動輸入區域 -->
-        <div class="manual-section" id="manualSection" style="display: none;">
+        <div class="manual-section" id="manualSection">
             <div class="manual-header">⌨️ 手動輸入數值陣列</div>
-            <div class="manual-description">
+            <div class="manual-description" style="display: none;">
                 <p>請貼入 JSON 格式的二維數字陣列，例如：</p>
                 <code class="manual-example">[[8,8,5,2,3,1,1,8,5,8],[4,4,2,1,4,4,1,7,7,7],...]</code>
                 <p class="manual-hint">格子數值僅允許 0-9</p>
@@ -84,24 +86,17 @@
 
         <!-- 結果區域 -->
         <div id="resultSection" class="result-section" style="display: none;">
-            <!-- 數值矩陣 -->
-            <div class="result-card">
+            <!-- 數值矩陣 (隱藏) -->
+            <div class="result-card" style="display: none;">
                 <div class="result-header">📊 解析結果 - 數值矩陣</div>
                 <div class="matrix-container" id="valueMatrix"></div>
                 <div class="matrix-info" id="matrixInfo"></div>
             </div>
 
-            <!-- 二元陣列 -->
-            <div class="result-card">
+            <!-- 二元陣列 (隱藏) -->
+            <div class="result-card" style="display: none;">
                 <div class="result-header">🔢 二元陣列（1=有方塊，0=空）</div>
                 <div class="matrix-container binary-matrix" id="binaryMatrix"></div>
-            </div>
-
-            <!-- 手動修正區域 -->
-            <div class="result-card">
-                <div class="result-header">✏️ 手動修正數字（點擊格子修改）</div>
-                <div class="matrix-container editable-matrix" id="editableMatrix"></div>
-                <button type="button" id="recalculateBtn" class="recalculate-btn">🔄 重新計算步驟</button>
             </div>
 
             <!-- 通關步驟 -->
@@ -115,6 +110,13 @@
                     <p class="no-steps">尚未產生步驟</p>
                 </div>
                 <div class="steps-summary" id="stepsSummary"></div>
+            </div>
+
+            <!-- 手動修正區域 (移至通關步驟下方) -->
+            <div class="result-card">
+                <div class="result-header">✏️ 手動修正數字（點擊格子修改）</div>
+                <div class="matrix-container editable-matrix" id="editableMatrix"></div>
+                <button type="button" id="recalculateBtn" class="recalculate-btn">🔄 重新計算步驟</button>
             </div>
 
             <!-- 視覺化 -->
@@ -144,14 +146,14 @@
         <div class="help-section">
             <div class="help-header">📖 使用說明</div>
             <div class="help-content">
-                <p><strong>遊戲規則：</strong>當拖曳的方塊上數字總和為10時，即可消除方塊並獲得分數。</p>
+                <p><strong>遊戲規則：</strong>選取一個矩形區域，當區域內所有方塊的數字總和為10時，即可消除該矩形內的方塊並獲得分數。</p>
                 <p><strong>📷 上傳圖片模式：</strong></p>
                 <ol>
                     <li>上傳 Nikke 小遊戲的截圖（包含數字格子畫面）</li>
                     <li>系統會自動偵測格子位置並使用 OCR 辨識數字</li>
                     <li>若辨識有誤，可點擊格子手動修正</li>
                     <li>選擇策略後，系統會產生消除步驟</li>
-                    <li>按照步驟指示，在遊戲中依序點選相鄰格子消除方塊</li>
+                    <li>按照步驟指示，在遊戲中選取矩形區域消除方塊</li>
                 </ol>
                 <p><strong>⌨️ 手動輸入模式：</strong></p>
                 <ol>
@@ -161,7 +163,7 @@
                     <li>若偵測到需要轉置（如 16×10），可點擊「一鍵轉置」按鈕</li>
                     <li>格子數值僅允許 0-9</li>
                 </ol>
-                <p><strong>注意：</strong>路徑必須由相鄰格子組成（上下左右相鄰）。座標系統使用 1-based（第一行/列為1）。</p>
+                <p><strong>注意：</strong>每個步驟的選取區域必須為矩形。座標系統使用 1-based（第一行/列為1）。</p>
             </div>
         </div>
     </div>
