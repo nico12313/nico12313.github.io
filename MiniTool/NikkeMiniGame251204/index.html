@@ -14,6 +14,8 @@
     <link rel="stylesheet" href="styles.css">
     <!-- Tesseract.js for OCR -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <!-- SweetAlert2 for notifications -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 
 <body>
@@ -24,8 +26,8 @@
         <!-- 輸入模式選擇 -->
         <div class="mode-section">
             <div class="mode-toggle">
-                <button type="button" class="mode-btn active" data-mode="image" id="imageModeBtn">📷 上傳圖片</button>
-                <button type="button" class="mode-btn" data-mode="manual" id="manualModeBtn">⌨️ 手動輸入</button>
+                <button type="button" class="mode-btn" data-mode="image" id="imageModeBtn">📷 上傳圖片</button>
+                <button type="button" class="mode-btn active" data-mode="manual" id="manualModeBtn">⌨️ 手動輸入</button>
             </div>
         </div>
 
@@ -41,7 +43,7 @@
         </div>
 
         <!-- 上傳區域 -->
-        <div class="upload-section" id="uploadSection">
+        <div class="upload-section" id="uploadSection" style="display: none;">
             <div class="upload-header">📷 上傳遊戲截圖</div>
             <div class="upload-area" id="uploadArea">
                 <input type="file" id="imageInput" accept="image/png, image/jpeg, image/jpg" hidden>
@@ -56,7 +58,7 @@
         </div>
 
         <!-- 手動輸入區域 -->
-        <div class="manual-section" id="manualSection" style="display: none;">
+        <div class="manual-section" id="manualSection">
             <div class="manual-header">⌨️ 手動輸入數值陣列</div>
             <div class="manual-description">
                 <p>請貼入 JSON 格式的二維數字陣列，例如：</p>

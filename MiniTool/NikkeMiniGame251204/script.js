@@ -47,7 +47,7 @@ class NikkeSolver {
         this.currentStrategy = 'greedy';
         this.currentStepIndex = 0;
         this.originalImage = null;
-        this.currentMode = 'image'; // 'image' or 'manual'
+        this.currentMode = 'manual'; // 'image' or 'manual' - default to manual
         this.selectedSize = 'auto'; // 'auto', '8x14', '9x15', '10x16'
         this.parsedManualArray = null;
         this.needsTranspose = false;
@@ -59,6 +59,33 @@ class NikkeSolver {
         this.setupEventListeners();
         this.setupModeToggle();
         this.setupManualInput();
+    }
+
+    // Toast notification helper using SweetAlert2
+    showToast(message, type = 'info') {
+        const iconMap = {
+            success: 'success',
+            error: 'error',
+            warning: 'warning',
+            info: 'info'
+        };
+
+        const Toast = Swal.mixin({
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3000,
+            timerProgressBar: true,
+            didOpen: (toast) => {
+                toast.onmouseenter = Swal.stopTimer;
+                toast.onmouseleave = Swal.resumeTimer;
+            }
+        });
+
+        Toast.fire({
+            icon: iconMap[type] || 'info',
+            title: message
+        });
     }
 
     setupEventListeners() {
@@ -299,7 +326,7 @@ class NikkeSolver {
 
     parseManualArray() {
         if (!this.parsedManualArray) {
-            alert('請先輸入有效的二維陣列');
+            this.showToast('請先輸入有效的二維陣列', 'warning');
             return;
         }
 
@@ -325,13 +352,18 @@ class NikkeSolver {
         // 顯示結果區域
         document.getElementById('resultSection').style.display = 'block';
 
-        // 滾動到結果區域
-        document.getElementById('resultSection').scrollIntoView({ behavior: 'smooth' });
+        // 顯示成功訊息
+        this.showToast(`成功解析 ${this.gridCols} × ${this.gridRows} 陣列！`, 'success');
+
+        // 滾動到視覺化路徑區域
+        setTimeout(() => {
+            document.getElementById('visualizationContainer').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
     }
 
     handleImageUpload(file) {
         if (!file.type.match(/image\/(png|jpeg|jpg)/)) {
-            alert('請上傳 PNG 或 JPG 格式的圖片');
+            this.showToast('請上傳 PNG 或 JPG 格式的圖片', 'error');
             return;
         }
 
@@ -355,7 +387,7 @@ class NikkeSolver {
 
     async analyzeImage() {
         if (!this.originalImage) {
-            alert('請先上傳圖片');
+            this.showToast('請先上傳圖片', 'warning');
             return;
         }
 
@@ -386,7 +418,7 @@ class NikkeSolver {
             
         } catch (error) {
             console.error('分析錯誤:', error);
-            alert('分析過程發生錯誤，請確認圖片格式正確或嘗試其他截圖');
+            this.showToast('分析過程發生錯誤，請確認圖片格式正確或嘗試其他截圖', 'error');
             this.showLoading(false);
         }
     }
@@ -994,10 +1026,20 @@ class NikkeSolver {
         const canvas = document.getElementById('visualCanvas');
         const container = document.getElementById('visualizationContainer');
         
-        // 設置 canvas 大小
-        const size = Math.min(container.clientWidth - 30, 500);
-        canvas.width = size;
-        canvas.height = size;
+        // 計算每個格子的最佳尺寸
+        const maxContainerWidth = container.clientWidth - 30;
+        const maxContainerHeight = 800; // 最大高度限制
+        
+        // 根據格子數量計算 cell 尺寸，確保完整顯示所有格子
+        const cellSizeByWidth = maxContainerWidth / this.gridCols;
+        const cellSizeByHeight = maxContainerHeight / this.gridRows;
+        
+        // 使用較小的 cellSize 以確保完整顯示
+        const cellSize = Math.min(cellSizeByWidth, cellSizeByHeight, 50); // 50px 是格子的最大尺寸
+        
+        // 設置 canvas 大小 - 動態根據實際格子數量
+        canvas.width = cellSize * this.gridCols;
+        canvas.height = cellSize * this.gridRows;
         
         this.drawGrid();
     }
